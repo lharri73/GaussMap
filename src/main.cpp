@@ -1,42 +1,39 @@
-#include <iostream>
-#include <pybind11/pybind11.h>
-#include <pybind11/numpy.h>
-#include <pybind11/stl.h>
+// #include <iostream>
+// #include <pybind11/pybind11.h>
+// #include <pybind11/numpy.h>
+// #include <pybind11/stl.h>
 #include <cuda_runtime.h>
 #include "header.hpp"
 
-void multiply_with_scalar(pybind11::array_t<double> vec, double scalar){
-  int size = 10;
-  double *gpu_ptr;
-  cudaError_t error = cudaMalloc(&gpu_ptr, size * sizeof(double));
+GaussMap::GaussMap(int Width, int Height, int Vcells, int Hcells) : 
+    height{Height}, width{Width}, vcells{Vcells}, hcells{Hcells}{
+    // allocate memory for the array
+    cudaChannelFormatDesc desc;
+    desc.f = cudaChannelFormatKind::cudaChannelFormatKindSigned;
+    desc.x = 8; // use 8 bits for the x fields
+    // dont use the y,z,w fields
+    desc.y = 0;
+    desc.z = 0;
+    desc.w = 0;
 
-  if (error != cudaSuccess) {
-    throw std::runtime_error(cudaGetErrorString(error));
-  }
-  auto ha = vec.request();
+    cudaError_t error = cudaMallocArray(&array, &desc, width, height);
+    if(error != cudaSuccess){
+        throw std::runtime_error(cudaGetErrorString(error));
+    }
+    allClean = false;
+}
 
-  if (ha.ndim != 1) {
-    std::stringstream strstr;
-    strstr << "ha.ndim != 1" << std::endl;
-    strstr << "ha.ndim: " << ha.ndim << std::endl;
-    throw std::runtime_error(strstr.str());
-  }
+GaussMap::~GaussMap(){
+    // there isn't a nice way to call destructors from 
+    // python, so we do it this way. 
+    if(!allClean)
+        cleanup();
+}
 
-  double* ptr = reinterpret_cast<double*>(ha.ptr);
-  error = cudaMemcpy(gpu_ptr, ptr, size * sizeof(double), cudaMemcpyHostToDevice);
-  if (error != cudaSuccess) {
-    throw std::runtime_error(cudaGetErrorString(error));
-  }
-
-  run_kernel(gpu_ptr, scalar, size);
-
-  error = cudaMemcpy(ptr, gpu_ptr, size * sizeof(double), cudaMemcpyDeviceToHost);
-  if (error != cudaSuccess) {
-    throw std::runtime_error(cudaGetErrorString(error));
-  }
-
-  error = cudaFree(gpu_ptr);
-  if (error != cudaSuccess) {
-    throw std::runtime_error(cudaGetErrorString(error));
-  }
+void GaussMap::cleanup(){
+    cudaError_t error = cudaFreeArray(array);
+    if(error != cudaSuccess){
+        throw std::runtime_error(cudaGetErrorString(error));
+    }
+    allClean = true;
 }

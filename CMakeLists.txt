@@ -16,7 +16,12 @@ include_directories(
 
 pybind11_add_module(gaussMap
     src/main.cpp
-    gpuSrc/kernel.cu
+    # gpuSrc/kernel.cu
+)
+
+## Link to cuda
+target_link_libraries(gaussMap PRIVATE
+    CUDA::cudart
 )
 
 set_property(TARGET gaussMap PROPERTY CUDA_ARCHITECTURES 60 61 62 70 72)

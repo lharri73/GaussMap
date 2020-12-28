@@ -3,14 +3,10 @@
 #include <cuda_runtime.h>
 
 
-__global__ void kernel
-(double *vec, double scalar, int num_elements)
-{
-  unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx < num_elements) {
-    vec[idx] = vec[idx] * scalar;
-  }
-}
+// __global__ size_t array_index
+// (int x, int y, ){
+
+// }
 
 
 void run_kernel
