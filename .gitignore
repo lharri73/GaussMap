@@ -19,3 +19,9 @@ build
 
 ## VSCode stuff
 .vscode
+
+## python stuff
+__pycache__
+
+## Mac stuff
+.DS_Store
