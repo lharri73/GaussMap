@@ -1,5 +1,5 @@
 #include <cuda_runtime.h>
-#include "header.hpp"
+#include "gaussMap.hpp"
 
 
 // __global__ size_t array_index

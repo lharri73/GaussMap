@@ -3,7 +3,7 @@
 // #include <pybind11/numpy.h>
 // #include <pybind11/stl.h>
 #include <cuda_runtime.h>
-#include "header.hpp"
+#include "gaussMap.hpp"
 #include <iostream>
 
 GaussMap::GaussMap(int Width, int Height, int Vcells, int Hcells) : 
