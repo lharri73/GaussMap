@@ -1,2 +1,4 @@
-nuscenes-devkit
-nuscenes_dataset
+argparse
+nuscenes-devkit==1.1.1
+nuscenes_dataset        # aka pynuscenes
+tqdm
