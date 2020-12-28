@@ -6,10 +6,4 @@ This project requires:
 - pybind11 >=2.2 (installed with apt is easier)
 
 ## Installation
-1. Configure the project
-
-In the root of this repository, run `./configure.sh`
-
-1. Make
-
-In the newly created build directory, run `make`
+Installation is simplified with python. Simply run `python setup.py install` and dependencies will be installed and configured. 

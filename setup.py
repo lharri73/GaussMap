@@ -10,6 +10,10 @@ from distutils.version import LooseVersion
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 
+requirements = []
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
+
 class CMakeExtension(Extension):
     def __init__(self, name, sourcedir=''):
         Extension.__init__(self, name, sources=[])
@@ -59,4 +63,7 @@ setup(
     ext_modules=[CMakeExtension('gaussMap')],
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
+    install_requires=requirements,
+    dependency_links=['git+https://github.com/lharri73/nuscenes_dataset_private.git#egg=nuscenes_dataset'],
+    python_requires=">=3.7",
 )
