@@ -1,3 +1,4 @@
+#pragma once
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <cstdlib>
@@ -14,8 +15,12 @@ class GaussMap{
         int height, width;
         int vcells, hcells;
 
+        // radar point info
+        // populated after addRadarData called
         size_t numPoints;
         size_t radarFeatures;
+
+        void calcRadarMap();
     public:
         GaussMap(int width, int height, int vcells, int hcells);
         ~GaussMap();
@@ -24,13 +29,3 @@ class GaussMap{
 
 };
 
-// void run_kernel(double *vec, double scalar, int num_elements);
-// void multiply_with_scalar(pybind11::array_t<double> vec, double scalar);
-
-PYBIND11_MODULE(gaussMap, m){
-    // m.def("multiply_with_scalar", multiply_with_scalar);
-    py::class_<GaussMap>(m,"GaussMap")
-        .def(py::init<int,int,int,int>())
-        .def("cleanup", &GaussMap::cleanup)
-        .def("addRadarData", &GaussMap::addRadarData);
-}

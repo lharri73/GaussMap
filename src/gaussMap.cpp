@@ -54,6 +54,7 @@ void GaussMap::cleanup(){
 // this template py:array_t forces the numpy array to be passed without any strides
 // and favors a c-style array
 void GaussMap::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::array::forcecast> array){
+    // get information about the numpy array from python
     py::buffer_info buf1 = array.request();
     RadarData_t *data;
     data = static_cast<RadarData_t*>(buf1.ptr);
@@ -64,6 +65,7 @@ void GaussMap::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::ar
     numPoints = buf1.shape[1];
     radarFeatures = buf1.shape[0]; // usually 18
 
+    // allocate and copy the array to the GPU so we can run a kernel on it
     cudaError_t error = cudaMalloc(&radarData, sizeof(RadarData_t) * numPoints * radarFeatures);
     if(error != cudaSuccess){
         throw std::runtime_error(cudaGetErrorString(error));
@@ -73,10 +75,14 @@ void GaussMap::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::ar
     if(error != cudaSuccess){
         throw std::runtime_error(cudaGetErrorString(error));
     }
-    // for(size_t i = 0; i < buf1.shape[0]; i++){
-    //     for(size_t j = 0; j < buf1.shape[1]; j++){
-    //         printf("%f ", data[j + buf1.shape[1]*i]);
-    //     }
-    //     putchar('\n');
-    // }
+    calcRadarMap();
+}
+
+
+PYBIND11_MODULE(gaussMap, m){
+    // m.def("multiply_with_scalar", multiply_with_scalar);
+    py::class_<GaussMap>(m,"GaussMap")
+        .def(py::init<int,int,int,int>())
+        .def("cleanup", &GaussMap::cleanup)
+        .def("addRadarData", &GaussMap::addRadarData);
 }

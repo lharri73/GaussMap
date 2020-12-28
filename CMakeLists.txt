@@ -16,7 +16,7 @@ include_directories(
 
 pybind11_add_module(gaussMap
     src/main.cpp
-    # gpuSrc/kernel.cu
+    gpuSrc/kernel.cu
 )
 
 ## Link to cuda
