@@ -1,9 +1,25 @@
-cmake_minimum_required(VERSION 3.8)
-project(gaussMap)
+cmake_minimum_required(VERSION 3.17)
+project(gaussMap LANGUAGES CXX CUDA)
 
-enable_language(CUDA)
+find_package(CUDAToolkit)
 
-include_directories(include)
-add_executable(gaussMap 
-    src/main.cpp
+set(Python_FIND_VIRTUALENV FIRST)
+find_package(Python COMPONENTS Interpreter Development REQUIRED)
+find_package(pybind11)
+
+
+include_directories(
+    include 
+    ${Python_INCLUDE_DIRS}
+    ${CUDAToolkit_INCLUDE_DIRS}
 )
+
+pybind11_add_module(gaussMap
+    src/main.cpp
+    gpuSrc/kernel.cu
+)
+
+set_property(TARGET gaussMap PROPERTY CUDA_ARCHITECTURES 60 61 62 70 72)
+set_property(TARGET gaussMap PROPERTY CXX_STANDARD 11)
+
+set(PYBIND11_CPP_STANDARD -std=c++11)

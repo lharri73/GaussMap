@@ -12,5 +12,10 @@ CTestTestfile.cmake
 _deps
 
 
-# CMake targets
-gaussMap
+## CMake targets
+dist
+gaussMap.egg-info
+build
+
+## VSCode stuff
+.vscode

@@ -1,19 +1,42 @@
-#include <cstdio>
+#include <iostream>
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
+#include <pybind11/stl.h>
+#include <cuda_runtime.h>
 #include "header.hpp"
 
-int main(int argc, char** argv){
-    printf("here\n");
-    return 0;
-}
+void multiply_with_scalar(pybind11::array_t<double> vec, double scalar){
+  int size = 10;
+  double *gpu_ptr;
+  cudaError_t error = cudaMalloc(&gpu_ptr, size * sizeof(double));
 
-const int* gaussMap::Array() const{
-    return array;
-}
+  if (error != cudaSuccess) {
+    throw std::runtime_error(cudaGetErrorString(error));
+  }
+  auto ha = vec.request();
 
-size_t gaussMap::Width() const{
-    return width;
-}
+  if (ha.ndim != 1) {
+    std::stringstream strstr;
+    strstr << "ha.ndim != 1" << std::endl;
+    strstr << "ha.ndim: " << ha.ndim << std::endl;
+    throw std::runtime_error(strstr.str());
+  }
 
-size_t gaussMap::Height() const{
-    return height;
+  double* ptr = reinterpret_cast<double*>(ha.ptr);
+  error = cudaMemcpy(gpu_ptr, ptr, size * sizeof(double), cudaMemcpyHostToDevice);
+  if (error != cudaSuccess) {
+    throw std::runtime_error(cudaGetErrorString(error));
+  }
+
+  run_kernel(gpu_ptr, scalar, size);
+
+  error = cudaMemcpy(ptr, gpu_ptr, size * sizeof(double), cudaMemcpyDeviceToHost);
+  if (error != cudaSuccess) {
+    throw std::runtime_error(cudaGetErrorString(error));
+  }
+
+  error = cudaFree(gpu_ptr);
+  if (error != cudaSuccess) {
+    throw std::runtime_error(cudaGetErrorString(error));
+  }
 }
