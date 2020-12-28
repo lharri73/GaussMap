@@ -4,6 +4,7 @@
 // #include <pybind11/stl.h>
 #include <cuda_runtime.h>
 #include "header.hpp"
+#include <iostream>
 
 GaussMap::GaussMap(int Width, int Height, int Vcells, int Hcells) : 
     height{Height}, width{Width}, vcells{Vcells}, hcells{Hcells}{
@@ -20,6 +21,9 @@ GaussMap::GaussMap(int Width, int Height, int Vcells, int Hcells) :
     if(error != cudaSuccess){
         throw std::runtime_error(cudaGetErrorString(error));
     }
+
+    radarData = nullptr;
+
     allClean = false;
 }
 
@@ -31,9 +35,48 @@ GaussMap::~GaussMap(){
 }
 
 void GaussMap::cleanup(){
-    cudaError_t error = cudaFreeArray(array);
+    if(!allClean){
+        cudaError_t error = cudaFreeArray(array);
+        if(error != cudaSuccess){
+            throw std::runtime_error(cudaGetErrorString(error));
+        }
+        if(radarData != nullptr){
+            error = cudaFree(radarData);
+            if(error != cudaSuccess){
+                throw std::runtime_error(cudaGetErrorString(error));
+            }
+        }
+    }
+
+    allClean = true;
+}
+
+// this template py:array_t forces the numpy array to be passed without any strides
+// and favors a c-style array
+void GaussMap::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::array::forcecast> array){
+    py::buffer_info buf1 = array.request();
+    RadarData_t *data;
+    data = static_cast<RadarData_t*>(buf1.ptr);
+    if(buf1.itemsize != sizeof(RadarData_t)){
+        throw std::runtime_error("Invalid datatype passed with radar data. Should be type: float (float32).");
+    }
+
+    numPoints = buf1.shape[1];
+    radarFeatures = buf1.shape[0]; // usually 18
+
+    cudaError_t error = cudaMalloc(&radarData, sizeof(RadarData_t) * numPoints * radarFeatures);
     if(error != cudaSuccess){
         throw std::runtime_error(cudaGetErrorString(error));
     }
-    allClean = true;
+
+    error = cudaMemcpy(radarData, data, sizeof(RadarData_t) * numPoints * radarFeatures, cudaMemcpyHostToDevice);
+    if(error != cudaSuccess){
+        throw std::runtime_error(cudaGetErrorString(error));
+    }
+    // for(size_t i = 0; i < buf1.shape[0]; i++){
+    //     for(size_t j = 0; j < buf1.shape[1]; j++){
+    //         printf("%f ", data[j + buf1.shape[1]*i]);
+    //     }
+    //     putchar('\n');
+    // }
 }

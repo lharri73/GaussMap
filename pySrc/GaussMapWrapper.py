@@ -1,6 +1,7 @@
 from pynuscenes.nuscenes_dataset import NuscenesDataset
 from tqdm import tqdm
 from gaussMap import GaussMap
+import numpy as np
 
 class GaussMapWrapper:
     def __init__(self, version, split, dataset_dir):
@@ -18,9 +19,10 @@ class GaussMapWrapper:
 
             ## create the heatmap
             self.createMap()
-
+            self.map.addRadarData(np.ascontiguousarray(radarPoints))
             ## call the destructor for python
             self.map.cleanup()
+            input()
 
     def createMap(self):
         ## GaussMap is initialized with (width, height, vcells, hcells)
