@@ -1,26 +1,15 @@
-// #include <iostream>
-// #include <pybind11/pybind11.h>
-// #include <pybind11/numpy.h>
-// #include <pybind11/stl.h>
-#include <cuda_runtime.h>
 #include "gaussMap.hpp"
+#include "utils.hpp"
 #include <iostream>
 
-GaussMap::GaussMap(int Width, int Height, int Vcells, int Hcells) : 
-    height{Height}, width{Width}, vcells{Vcells}, hcells{Hcells}{
+GaussMap::GaussMap(int Width, int Height, int Cell_res){
+    mapInfo.rows = Height * Cell_res;
+    mapInfo.cols = Width * Cell_res;
     // allocate memory for the array
-    cudaChannelFormatDesc desc;
-    desc.f = cudaChannelFormatKind::cudaChannelFormatKindSigned;
-    desc.x = 8; // use 8 bits for the x fields
-    // dont use the y,z,w fields
-    desc.y = 0;
-    desc.z = 0;
-    desc.w = 0;
-
-    cudaError_t error = cudaMallocArray(&array, &desc, width, height);
-    if(error != cudaSuccess){
-        throw std::runtime_error(cudaGetErrorString(error));
-    }
+    cudaError_t error = cudaMallocPitch(&array, &mapInfo.pitch, mapInfo.cols, mapInfo.rows);
+    checkCudaError(error);
+    error = cudaMemset2D(array, mapInfo.pitch, 0, mapInfo.cols, mapInfo.rows);
+    checkCudaError(error);
 
     radarData = nullptr;
 
@@ -36,15 +25,11 @@ GaussMap::~GaussMap(){
 
 void GaussMap::cleanup(){
     if(!allClean){
-        cudaError_t error = cudaFreeArray(array);
-        if(error != cudaSuccess){
-            throw std::runtime_error(cudaGetErrorString(error));
-        }
+        cudaError_t error = cudaFree(array);
+        checkCudaError(error);
         if(radarData != nullptr){
             error = cudaFree(radarData);
-            if(error != cudaSuccess){
-                throw std::runtime_error(cudaGetErrorString(error));
-            }
+            checkCudaError(error);
         }
     }
 
@@ -67,14 +52,11 @@ void GaussMap::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::ar
 
     // allocate and copy the array to the GPU so we can run a kernel on it
     cudaError_t error = cudaMalloc(&radarData, sizeof(RadarData_t) * numPoints * radarFeatures);
-    if(error != cudaSuccess){
-        throw std::runtime_error(cudaGetErrorString(error));
-    }
+    checkCudaError(error);
 
     error = cudaMemcpy(radarData, data, sizeof(RadarData_t) * numPoints * radarFeatures, cudaMemcpyHostToDevice);
-    if(error != cudaSuccess){
-        throw std::runtime_error(cudaGetErrorString(error));
-    }
+    checkCudaError(error);
+
     calcRadarMap();
 }
 
@@ -82,7 +64,7 @@ void GaussMap::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::ar
 PYBIND11_MODULE(gaussMap, m){
     // m.def("multiply_with_scalar", multiply_with_scalar);
     py::class_<GaussMap>(m,"GaussMap")
-        .def(py::init<int,int,int,int>())
+        .def(py::init<int,int,int>())
         .def("cleanup", &GaussMap::cleanup)
         .def("addRadarData", &GaussMap::addRadarData);
 }

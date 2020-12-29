@@ -1,32 +1,36 @@
 #include <cuda_runtime.h>
+#include <sstream>
 #include "gaussMap.hpp"
+#include "utils.hpp"
 
-
-// __global__ size_t array_index
-// (int x, int y, ){
-
-// }
-
-void GaussMap::calcRadarMap(){
-    printf("here?");
+__device__
+size_t array_index(size_t row, size_t col, array_info info){
+    return row * info.pitch + col;
 }
 
-// void run_kernel
-// (double *vec, double scalar, int num_elements)
-// {
-//   dim3 dimBlock(256, 1, 1);
-//   dim3 dimGrid(ceil((double)num_elements / dimBlock.x));
-  
-//   kernel<<<dimGrid, dimBlock>>>
-//     (vec, scalar, num_elements);
+__global__ 
+void radarPointKernel(short* gaussMap, RadarData_t *radarData, dim3 radarSize){
 
-//   cudaError_t error = cudaGetLastError();
-//   if (error != cudaSuccess) {
-//     std::stringstream strstr;
-//     strstr << "run_kernel launch failed" << std::endl;
-//     strstr << "dimBlock: " << dimBlock.x << ", " << dimBlock.y << std::endl;
-//     strstr << "dimGrid: " << dimGrid.x << ", " << dimGrid.y << std::endl;
-//     strstr << cudaGetErrorString(error);
-//     throw strstr.str();
-//   }
-// }
+}
+
+void GaussMap::calcRadarMap(){
+    dim3 arraySize(numPoints, radarFeatures);
+
+    // dispatch the kernel with `numPoints` threads
+    radarPointKernel<<<1,numPoints>>>(
+        array,
+        radarData,
+        arraySize
+    );
+
+    cudaError_t error = cudaGetLastError();
+    if(error != cudaSuccess){
+        std::stringstream ss;
+        ss << "radarPointKernel launch failed\n";
+        ss << cudaGetErrorString(error);
+        throw std::string(ss.str());
+    }
+
+    // wait untill all threads sync
+    cudaDeviceSynchronize();
+}

@@ -1,7 +1,6 @@
 # Gauss Map
 
 ## Requirements
-This project requires:
 - cmake >=3.17
 - pybind11 >=2.2 (installed with apt is easier)
 
