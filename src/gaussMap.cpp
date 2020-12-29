@@ -2,13 +2,15 @@
 #include "utils.hpp"
 #include <iostream>
 
+// allocates memory for the map
 GaussMap::GaussMap(int Width, int Height, int Cell_res){
     mapInfo.rows = Height * Cell_res;
     mapInfo.cols = Width * Cell_res;
+    mapInfo.elementSize = sizeof(short);
     // allocate memory for the array
-    cudaError_t error = cudaMallocPitch(&array, &mapInfo.pitch, mapInfo.cols, mapInfo.rows);
+    cudaError_t error = cudaMalloc(&array, mapInfo.cols * mapInfo.rows * mapInfo.elementSize);
     checkCudaError(error);
-    error = cudaMemset2D(array, mapInfo.pitch, 0, mapInfo.cols, mapInfo.rows);
+    error = cudaMemset(array, 0, mapInfo.cols * mapInfo.rows * mapInfo.elementSize);
     checkCudaError(error);
 
     radarData = nullptr;
@@ -23,6 +25,7 @@ GaussMap::~GaussMap(){
         cleanup();
 }
 
+// performs the cleanup steps. Frees memory
 void GaussMap::cleanup(){
     if(!allClean){
         cudaError_t error = cudaFree(array);
@@ -47,8 +50,8 @@ void GaussMap::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::ar
         throw std::runtime_error("Invalid datatype passed with radar data. Should be type: float (float32).");
     }
 
-    numPoints = buf1.shape[1];
-    radarFeatures = buf1.shape[0]; // usually 18
+    numPoints = buf1.shape[1];      // num points
+    radarFeatures = buf1.shape[0];  // usually 18
 
     // allocate and copy the array to the GPU so we can run a kernel on it
     cudaError_t error = cudaMalloc(&radarData, sizeof(RadarData_t) * numPoints * radarFeatures);
@@ -57,14 +60,30 @@ void GaussMap::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::ar
     error = cudaMemcpy(radarData, data, sizeof(RadarData_t) * numPoints * radarFeatures, cudaMemcpyHostToDevice);
     checkCudaError(error);
 
-    calcRadarMap();
+    calcRadarMap();     // setup for the CUDA kernel. in GPU code
 }
 
+// returns numpy array to python
+py::array_t<short> GaussMap::asArray(){
+    short* retArray;
+    retArray = (short*)malloc(sizeof(short) * mapInfo.cols * mapInfo.rows);
+    checkCudaError(cudaMemcpy(retArray, array, mapInfo.cols * mapInfo.rows * mapInfo.elementSize, cudaMemcpyDeviceToHost));
+
+    py::buffer_info a(
+        retArray, 
+        sizeof(short), 
+        py::format_descriptor<short>::format(), 
+        2, 
+        {mapInfo.rows, mapInfo.cols},
+        {sizeof(short) * mapInfo.cols, sizeof(short) * 1});
+    
+    return py::array_t<short>(a);
+}
 
 PYBIND11_MODULE(gaussMap, m){
-    // m.def("multiply_with_scalar", multiply_with_scalar);
     py::class_<GaussMap>(m,"GaussMap")
         .def(py::init<int,int,int>())
         .def("cleanup", &GaussMap::cleanup)
-        .def("addRadarData", &GaussMap::addRadarData);
+        .def("addRadarData", &GaussMap::addRadarData)
+        .def("asArray", &GaussMap::asArray);
 }

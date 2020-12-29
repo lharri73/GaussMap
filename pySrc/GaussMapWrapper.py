@@ -19,11 +19,11 @@ class GaussMapWrapper:
 
             ## create the heatmap
             self.createMap()
-            self.map.addRadarData(np.ascontiguousarray(radarPoints))
+            self.map.addRadarData(radarPoints)
             ## call the destructor for python
             self.map.cleanup()
-            input()
+            # input()
 
     def createMap(self):
         ## GaussMap is initialized with (width, height, vcells, hcells)
-        self.map = GaussMap(10,10,5,5)
+        self.map = GaussMap(10,10,5)

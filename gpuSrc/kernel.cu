@@ -5,7 +5,7 @@
 
 __device__
 size_t array_index(size_t row, size_t col, array_info info){
-    return row * info.pitch + col;
+    return row * info.rows + col;
 }
 
 __global__ 

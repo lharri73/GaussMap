@@ -10,7 +10,7 @@ typedef double RadarData_t;
 typedef struct Array_Info{
     size_t rows;
     size_t cols;
-    size_t pitch;
+    size_t elementSize;
 } array_info;
 
 class GaussMap{
@@ -33,5 +33,6 @@ class GaussMap{
         ~GaussMap();
         void cleanup();
         void addRadarData(py::array_t<RadarData_t, py::array::c_style | py::array::forcecast> array);
+        py::array_t<short> asArray();
 
 };
