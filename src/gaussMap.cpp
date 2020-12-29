@@ -17,9 +17,9 @@ GaussMap::GaussMap(int Width, int Height, int Cell_res, double radarStdDev, doub
     error = cudaMemset(array, 0, mapInfo.cols * mapInfo.rows * mapInfo.elementSize);
     checkCudaError(error);
 
-    radarDistri = (double*)calloc(2, sizeof(double));
-    radarDistri[0] = radarStdDev;
-    radarDistri[1] = radarMean;
+    radarDistri = (float*)calloc(2, sizeof(float));
+    radarDistri[0] = (float)radarStdDev;
+    radarDistri[1] = (float)radarMean;
 
     radarData = nullptr;
     mapInfo_cuda = nullptr;

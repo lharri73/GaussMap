@@ -5,7 +5,7 @@
 #include <cuda_runtime.h>
 namespace py = pybind11;
 
-typedef double RadarData_t;
+typedef float RadarData_t;
 typedef float mapType_t;
 
 typedef struct Array_Info{
@@ -30,8 +30,8 @@ class GaussMap{
         array_info radarInfo, *radarInfo_cuda;
         bool allClean;
 
-        double* radarDistri;    // normal distrubution info. 
-        double* radarDistri_c;  // 0: stddev, 1: mean
+        float* radarDistri;    // normal distrubution info. 
+        float* radarDistri_c;  // 0: stddev, 1: mean
 
         // radar point info
         // populated after addRadarData called
