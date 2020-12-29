@@ -2,17 +2,35 @@
 #include "gaussMap.cuh"
 
 __device__
-size_t array_index(size_t row, size_t col, array_info info){
-    return row * info.rows + col;
+size_t array_index(size_t row, size_t col, array_info *info){
+    // helper function to find the array index
+    return row * info->rows + col;
 }
 
-// find the position from center of map given cell index
-// ret: dim3 (x,y,radius)
+template <typename T>
+__device__
+double radiusFromPos(T x, T y){
+    // return the radius from the position from origin (at center of map)
+    // x and y in meters
+    return hypot((double)x, (double)y);
+}
+
 __device__ 
-dim3 index_to_position(size_t row, size_t col, array_info info){
-    return dim3(0,0,0);
-}
+dim3 index_to_position(size_t row, size_t col, array_info *info, array_rel *relation){
+    // find the position from center of map given cell index
+    // ret: dim3 (x,y,radius)
+    float center_x = (float)(info->cols/2.0);
+    float center_y = (float)(info->rows/2.0);
+    float x_offset = col - center_x;
+    float y_offset = (row - center_y) * -1;     // flip the y axis so + is in the direction of travel
 
+    dim3 ret;
+    ret.x = x_offset / relation->res;
+    ret.y = y_offset / relation->res;
+    ret.z = radiusFromPos(ret.x, ret.y);
+
+    return ret;
+}
 
 __global__ 
 void radarPointKernel(mapType_t* gaussMap, RadarData_t *radarData, array_info *mapInfo, array_rel* mapRel, array_info* radarInfo){
