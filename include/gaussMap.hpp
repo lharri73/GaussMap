@@ -30,7 +30,8 @@ class GaussMap{
         array_info radarInfo, *radarInfo_cuda;
         bool allClean;
 
-        int cell_res;
+        double* radarDistri;    // normal distrubution info. 
+        double* radarDistri_c;  // 0: stddev, 1: mean
 
         // radar point info
         // populated after addRadarData called
@@ -39,7 +40,7 @@ class GaussMap{
 
         void calcRadarMap();
     public:
-        GaussMap(int width, int height, int cell_res);
+        GaussMap(int width, int height, int cell_res, double radarStdDev, double radarMean);
         ~GaussMap();
         void cleanup();
         void addRadarData(py::array_t<RadarData_t, py::array::c_style | py::array::forcecast> array);

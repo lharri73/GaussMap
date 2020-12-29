@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import argparse
 from GaussMapWrapper import GaussMapWrapper
+import yaml
+from easydict import EasyDict as edict
 
 def parseArgs():
     parser = argparse.ArgumentParser(description='Gauss Map evaluation for the Nuscenes Dataset')
@@ -19,7 +21,12 @@ def main():
     else:
         split = args.split
 
-    gm = GaussMapWrapper(args.version, split, args.dataset_location)
+    config = {}
+    with open('config/cfg.yml') as f:
+        config = edict(yaml.safe_load(f))
+
+
+    gm = GaussMapWrapper(args.version, split, args.dataset_location, config)
 
     gm.run()
 

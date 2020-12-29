@@ -32,8 +32,15 @@ dim3 index_to_position(size_t row, size_t col, array_info *info, array_rel *rela
     return ret;
 }
 
+
+
 __global__ 
-void radarPointKernel(mapType_t* gaussMap, RadarData_t *radarData, array_info *mapInfo, array_rel* mapRel, array_info* radarInfo){
+void radarPointKernel(mapType_t* gaussMap, 
+                      RadarData_t *radarData, 
+                      array_info *mapInfo, 
+                      array_rel* mapRel, 
+                      array_info* radarInfo,
+                      double* distributionInfo){
     // printf("here!\n");
 }
 
@@ -53,9 +60,11 @@ void GaussMap::calcRadarMap(){
     checkCudaError(cudaMalloc(&mapInfo_cuda, sizeof(struct Array_Info)));
     checkCudaError(cudaMalloc(&radarInfo_cuda, sizeof(struct Array_Info)));
     checkCudaError(cudaMalloc(&mapRel_cuda, sizeof(struct Array_Relationship)));
+    checkCudaError(cudaMalloc(&radarDistri_c, 2*sizeof(double)));
     checkCudaError(cudaMemcpy(mapInfo_cuda, tmpa, sizeof(struct Array_Info), cudaMemcpyHostToDevice));
     checkCudaError(cudaMemcpy(radarInfo_cuda, tmpb, sizeof(struct Array_Info), cudaMemcpyHostToDevice));
     checkCudaError(cudaMemcpy(mapRel_cuda, tmpc, sizeof(struct Array_Relationship), cudaMemcpyHostToDevice));
+    checkCudaError(cudaMemcpy(radarDistri_c, radarDistri, 2*sizeof(double), cudaMemcpyHostToDevice));
 
     free(tmpa);
     free(tmpb);
@@ -68,7 +77,8 @@ void GaussMap::calcRadarMap(){
         radarData,
         mapInfo_cuda,
         mapRel_cuda,
-        radarInfo_cuda
+        radarInfo_cuda,
+        radarDistri_c
     );
 
     cudaError_t error = cudaGetLastError();

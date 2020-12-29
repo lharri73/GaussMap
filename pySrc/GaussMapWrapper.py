@@ -4,8 +4,9 @@ from gaussMap import GaussMap
 import numpy as np
 
 class GaussMapWrapper:
-    def __init__(self, version, split, dataset_dir):
+    def __init__(self, version, split, dataset_dir, gmConfig):
         self.nusc = NuscenesDataset(dataset_dir, version, split, 'config/cfg.yml')
+        self.gmConfig = gmConfig.GaussMap
 
     def run(self):
         for frame in tqdm(self.nusc):
@@ -27,4 +28,9 @@ class GaussMapWrapper:
 
     def createMap(self):
         ## GaussMap is initialized with (width, height, vcells, hcells)
-        self.map = GaussMap(10,10,5)
+        self.map = GaussMap(
+            self.gmConfig.MapWidth, 
+            self.gmConfig.MapHeight,
+            self.gmConfig.MapResolution,
+            self.gmConfig.Radar.stdDev,
+            self.gmConfig.Radar.mean)

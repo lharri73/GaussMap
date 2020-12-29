@@ -3,7 +3,7 @@
 #include <iostream>
 
 // allocates memory for the map
-GaussMap::GaussMap(int Width, int Height, int Cell_res){
+GaussMap::GaussMap(int Width, int Height, int Cell_res, double radarStdDev, double radarMean){
     mapInfo.rows = Height * Cell_res;
     mapInfo.cols = Width * Cell_res;
     mapInfo.elementSize = sizeof(mapType_t);
@@ -17,7 +17,14 @@ GaussMap::GaussMap(int Width, int Height, int Cell_res){
     error = cudaMemset(array, 0, mapInfo.cols * mapInfo.rows * mapInfo.elementSize);
     checkCudaError(error);
 
+    radarDistri = (double*)calloc(2, sizeof(double));
+    radarDistri[0] = radarStdDev;
+    radarDistri[1] = radarMean;
+
     radarData = nullptr;
+    mapInfo_cuda = nullptr;
+    mapRel_cuda = nullptr;
+    radarInfo_cuda = nullptr;
 
     allClean = false;
 }
@@ -29,19 +36,19 @@ GaussMap::~GaussMap(){
         cleanup();
 }
 
-// performs the cleanup steps. Frees memory
 void GaussMap::cleanup(){
+    // performs the cleanup steps. Frees memory
     if(!allClean){
-        cudaError_t error = cudaFree(array);
-        checkCudaError(error);
+        checkCudaError(cudaFree(array));
+        if(mapInfo_cuda != nullptr)
+            checkCudaError(cudaFree(mapInfo_cuda));
+        if(mapRel_cuda != nullptr)
+            checkCudaError(cudaFree(mapRel_cuda));
 
-        error = cudaFree(mapInfo_cuda);
-        checkCudaError(error);
         if(radarData != nullptr){
-            error = cudaFree(radarData);
-            checkCudaError(error);
-            error = cudaFree(radarInfo_cuda);
-            checkCudaError(error);
+            checkCudaError(cudaFree(radarData));
+            if(radarInfo_cuda != nullptr)
+                checkCudaError(cudaFree(radarInfo_cuda));
         }
     }
 
@@ -99,7 +106,7 @@ py::array_t<mapType_t> GaussMap::asArray(){
 
 PYBIND11_MODULE(gaussMap, m){
     py::class_<GaussMap>(m,"GaussMap")
-        .def(py::init<int,int,int>())
+        .def(py::init<int,int,int,double,double>())
         .def("cleanup", &GaussMap::cleanup)
         .def("addRadarData", &GaussMap::addRadarData)
         .def("asArray", &GaussMap::asArray);

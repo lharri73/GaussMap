@@ -65,3 +65,12 @@ NUSCENES:
     CONSOLE_LOG_LEVEL: "WARNING"         # logging level for console
     FILE_LOG_LEVEL: "WARNING"         # logging level for the log file
     LOG_OUT_DIR: "../../output/logs"  # logging output directory
+
+GaussMap:
+  MapWidth: 20
+  MapHeight: 20
+  MapResolution: 5
+
+  Radar:
+    stdDev: 1
+    mean: 0

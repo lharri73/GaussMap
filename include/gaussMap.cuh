@@ -12,4 +12,4 @@ __device__ dim3 index_to_position(size_t row, size_t col,
 
 __global__ void radarPointKernel(mapType_t* gaussMap, RadarData_t *radarData, 
                                  array_info* mapInfo, array_rel* mapRel, 
-                                 array_info* radarInfo);
+                                 array_info* radarInfo, double* distributionInfo);
