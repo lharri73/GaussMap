@@ -6,6 +6,7 @@
 namespace py = pybind11;
 
 typedef double RadarData_t;
+typedef float mapType_t;
 
 typedef struct Array_Info{
     size_t rows;
@@ -13,11 +14,20 @@ typedef struct Array_Info{
     size_t elementSize;
 } array_info;
 
+typedef struct Array_Relationship{
+    size_t width;   // meters
+    size_t height;  // meters
+    size_t res;     // resolution (cells per meter)
+} array_rel;
+
 class GaussMap{
     private:
-        short* array;
-        array_info mapInfo;
+        mapType_t* array;
+        array_info mapInfo, *mapInfo_cuda;
+        array_rel mapRel, *mapRel_cuda;
+
         RadarData_t* radarData; // set to nullptr until received
+        array_info radarInfo, *radarInfo_cuda;
         bool allClean;
 
         int cell_res;
@@ -33,6 +43,6 @@ class GaussMap{
         ~GaussMap();
         void cleanup();
         void addRadarData(py::array_t<RadarData_t, py::array::c_style | py::array::forcecast> array);
-        py::array_t<short> asArray();
+        py::array_t<mapType_t> asArray();
 
 };

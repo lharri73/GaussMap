@@ -12,14 +12,15 @@ class GaussMapWrapper:
             ## get the radar data
             radarFrame = frame['radar']
 
-            ## an 18xN array of radar points
-            radarPoints = radarFrame['pointcloud'].points
+            ## an Nx18 array of radar points (after the transform)
+            radarPoints = radarFrame['pointcloud'].points.T
 
             #TODO: get camera points
 
             ## create the heatmap
             self.createMap()
             self.map.addRadarData(radarPoints)
+            # input()
             ## call the destructor for python
             self.map.cleanup()
             # input()
