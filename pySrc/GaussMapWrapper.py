@@ -5,9 +5,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import open3d as o3d
 
-# def scale(array, min, max):
-#     stdDev = (array - array.min() )
-
 class GaussMapWrapper:
     def __init__(self, version, split, dataset_dir, gmConfig):
         self.nusc = NuscenesDataset(dataset_dir, version, split, 'config/cfg.yml')
@@ -26,13 +23,19 @@ class GaussMapWrapper:
 
             ## create the heatmap
             self.createMap()
+
             self.map.addRadarData(radarPoints)
+
+            ## vis functions
             self.showImage()
             self.showFrame(frame)
             # input()
 
     def createMap(self):
-        ## GaussMap is initialized with (width, height, vcells, hcells)
+        """
+        initializes the heatmap with config parameters from config file
+        See include/gaussMap.hpp for full construction signature
+        """
         self.map = GaussMap(
             self.gmConfig.MapWidth, 
             self.gmConfig.MapHeight,
@@ -42,31 +45,37 @@ class GaussMapWrapper:
             self.gmConfig.Radar.radiusCutoff)
 
     def showImage(self):
+        """
+        Creates an image of the heatmap and displays it as greyscale
+        """
         array = self.map.asArray()
-        # np.savetxt("array.txt", array)
         scaled = np.uint8(np.interp(array, (0, array.max()), (0,255)))
         plt.imshow(scaled, cmap="gray")
         plt.show(block=False)
         input()
 
     def showFrame(self, frame):
+        """
+        Draws the radar pointcloud and the lidar pointcloud in open3d
+        """
         vis = o3d.visualization.Visualizer()
         vis.create_window()
+
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(frame['lidar']['pointcloud'].points[:3,:].T)
 
         rpcd = o3d.geometry.PointCloud()
         rpcd.points = o3d.utility.Vector3dVector(frame['radar']['pointcloud'].points[:3,:].T)
-        rpcd.paint_uniform_color(np.array([1,0,0]))
+        rpcd.paint_uniform_color(np.array([1,0,0])) ## Red
         
         vis.add_geometry(pcd)
         vis.add_geometry(rpcd)
         ctr = vis.get_view_control()
+
         # ctr.set_up(np.array([1,0,0]))
         ctr.set_zoom(.2)
         ctr.translate(-40,10)
+        
         vis.run()
         vis.destroy_window()
         
-        # o3d.visualization.draw_geometries([pcd, rpcd])
-

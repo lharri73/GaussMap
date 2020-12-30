@@ -66,12 +66,14 @@ NUSCENES:
     FILE_LOG_LEVEL: "WARNING"         # logging level for the log file
     LOG_OUT_DIR: "../../output/logs"  # logging output directory
 
+## Gauss Map ###################################################################
 GaussMap:
-  MapWidth: 300
-  MapHeight: 300
-  MapResolution: 5
+  MapWidth: 80          ## (int) Width of the heat map in meters
+  MapHeight: 100        ## (int) Height of the heat map in meters
+  MapResolution: 5      ## (int) Number of cells per meter along each linear axis.
+                        ## - Number of cells per square meter = MapResolution^2
 
   Radar:
-    stdDev: 1
-    mean: 0
-    radiusCutoff: 3.0   # distance to cutoff distribution for each radar point (meters)
+    stdDev: 1.0         ## (float) Standard deviation of each radar point's normal distribution
+    mean: 0.0           ## (float) mean of each radar points normal distribution
+    radiusCutoff: 3.0   ## (float) distance to cutoff distribution for each radar point (meters)

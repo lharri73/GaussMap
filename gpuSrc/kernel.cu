@@ -136,6 +136,11 @@ void GaussMap::calcRadarMap(){
 
 
 //-----------------------------------------------------------------------------
+// implementation of the Position class.
+// Because of the way the nvcc linker works, all device code must be contained
+// in the same file (or fought with using compiler flags and many errors until
+// you finally reach success...or give up because you have better things to do
+// like I did)
 __device__ 
 Position::Position(float X, float Y) : x(X), y(Y){
     radius = hypotf(x,y);

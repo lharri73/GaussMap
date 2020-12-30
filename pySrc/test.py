@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+## This is just a file used to test a couple of features along the way
+## not actually any unit tests...
 import numpy as np
 from PIL import Image
 
