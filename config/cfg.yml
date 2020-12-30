@@ -67,11 +67,11 @@ NUSCENES:
     LOG_OUT_DIR: "../../output/logs"  # logging output directory
 
 GaussMap:
-  MapWidth: 50
-  MapHeight: 50
-  MapResolution: 1
+  MapWidth: 300
+  MapHeight: 300
+  MapResolution: 5
 
   Radar:
-    stdDev: 2
+    stdDev: 1
     mean: 0
     radiusCutoff: 3.0   # distance to cutoff distribution for each radar point (meters)

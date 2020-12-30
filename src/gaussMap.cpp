@@ -97,7 +97,7 @@ py::array_t<mapType_t> GaussMap::asArray(){
         py::format_descriptor<mapType_t>::format(), 
         2, 
         {mapInfo.rows, mapInfo.cols},
-        {sizeof(mapType_t) * 1, sizeof(mapType_t) * mapInfo.rows});
+        {sizeof(mapType_t) * mapInfo.cols, sizeof(mapType_t) * 1});
     
     return py::array_t<mapType_t>(a);
 }

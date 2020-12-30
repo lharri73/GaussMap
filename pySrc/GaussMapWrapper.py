@@ -20,8 +20,7 @@ class GaussMapWrapper:
 
             ## an Nx18 array of radar points (after the transform)
             radarPoints = radarFrame['pointcloud'].points.T
-            # np.savetxt("radar.txt", radarPoints)
-            print(radarPoints.shape)
+            # np.savetxt("radar.txt", radarPoints[:,:2])
 
             #TODO: get camera points
 
@@ -29,7 +28,7 @@ class GaussMapWrapper:
             self.createMap()
             self.map.addRadarData(radarPoints)
             self.showImage()
-            # self.showFrame(frame)
+            self.showFrame(frame)
             # input()
 
     def createMap(self):
@@ -51,12 +50,23 @@ class GaussMapWrapper:
         input()
 
     def showFrame(self, frame):
+        vis = o3d.visualization.Visualizer()
+        vis.create_window()
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(frame['lidar']['pointcloud'].points[:3,:].T)
 
         rpcd = o3d.geometry.PointCloud()
         rpcd.points = o3d.utility.Vector3dVector(frame['radar']['pointcloud'].points[:3,:].T)
         rpcd.paint_uniform_color(np.array([1,0,0]))
-
-        o3d.visualization.draw_geometries([pcd, rpcd])
+        
+        vis.add_geometry(pcd)
+        vis.add_geometry(rpcd)
+        ctr = vis.get_view_control()
+        # ctr.set_up(np.array([1,0,0]))
+        ctr.set_zoom(.2)
+        ctr.translate(-40,10)
+        vis.run()
+        vis.destroy_window()
+        
+        # o3d.visualization.draw_geometries([pcd, rpcd])
 

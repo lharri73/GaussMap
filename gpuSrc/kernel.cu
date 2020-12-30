@@ -26,7 +26,7 @@ Position indexDiff(size_t row, size_t col, RadarData_t *radarData, size_t radarP
     
     float rPosx = radarData[array_index(threadIdx.x, 0, radarInfo)];
     float rPosy = radarData[array_index(threadIdx.x, 1, radarInfo)];
-    printf("rpos %d x: %f, y: %f\n", threadIdx.x, rPosx, rPosy);
+    // printf("rpos %d x: %f, y: %f\n", threadIdx.x, rPosx, rPosy);
 
     Position difference(
         pos.x - rPosx,
@@ -40,7 +40,7 @@ Position index_to_position(size_t row, size_t col, array_info *info, array_rel *
     // find the position from center of map given cell index
     float center_x = (float)(info->cols/2.0);
     float center_y = (float)(info->rows/2.0);
-    float x_offset = col - center_x;
+    float x_offset = (col - center_x);
     float y_offset = (row - center_y) * -1;     // flip the y axis so + is in the direction of travel
 
     Position ret(
@@ -67,12 +67,13 @@ void radarPointKernel(mapType_t* gaussMap,
                       array_rel* mapRel, 
                       array_info* radarInfo,
                       float* distributionInfo){
+                          
     for(size_t row = 0; row < mapInfo->rows; row++){
         for(size_t col = 0; col < mapInfo->cols; col++){
             // find where the cell is relative to the radar point
             Position diff = indexDiff(row, col, 
-                                              radarData, threadIdx.x, 
-                                              radarInfo, mapInfo, mapRel);
+                                      radarData, threadIdx.x, 
+                                      radarInfo, mapInfo, mapRel);
             // don't calculate the pdf of this cell if it's too far away
             if(diff.radius > distributionInfo[2])
                 continue;
@@ -112,7 +113,6 @@ void GaussMap::calcRadarMap(){
 
 
     // dispatch the kernel with `numPoints` threads
-    printf("numPoints: %lu\n", numPoints);
     radarPointKernel<<<1,numPoints>>>(
         array,
         radarData,
