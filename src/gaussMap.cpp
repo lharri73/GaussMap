@@ -3,7 +3,7 @@
 #include <iostream>
 
 // allocates memory for the map
-GaussMap::GaussMap(int Width, int Height, int Cell_res, double radarStdDev, double radarMean){
+GaussMap::GaussMap(int Width, int Height, int Cell_res, double radarStdDev, double radarMean, double radarCutoff){
     mapInfo.rows = Height * Cell_res;
     mapInfo.cols = Width * Cell_res;
     mapInfo.elementSize = sizeof(mapType_t);
@@ -17,9 +17,10 @@ GaussMap::GaussMap(int Width, int Height, int Cell_res, double radarStdDev, doub
     error = cudaMemset(array, 0, mapInfo.cols * mapInfo.rows * mapInfo.elementSize);
     checkCudaError(error);
 
-    radarDistri = (float*)calloc(2, sizeof(float));
+    radarDistri = (float*)calloc(3, sizeof(float));
     radarDistri[0] = (float)radarStdDev;
     radarDistri[1] = (float)radarMean;
+    radarDistri[2] = (float)radarCutoff;
 
     radarData = nullptr;
     mapInfo_cuda = nullptr;
@@ -49,7 +50,6 @@ void GaussMap::cleanup(){
                 checkCudaError(cudaFree(radarInfo_cuda));
         }
     }
-    printf("called cleanup\n");
     allClean = true;
 }
 
@@ -97,14 +97,14 @@ py::array_t<mapType_t> GaussMap::asArray(){
         py::format_descriptor<mapType_t>::format(), 
         2, 
         {mapInfo.rows, mapInfo.cols},
-        {sizeof(mapType_t) * mapInfo.cols, sizeof(mapType_t) * 1});
+        {sizeof(mapType_t) * 1, sizeof(mapType_t) * mapInfo.rows});
     
     return py::array_t<mapType_t>(a);
 }
 
 PYBIND11_MODULE(gaussMap, m){
     py::class_<GaussMap>(m,"GaussMap")
-        .def(py::init<int,int,int,double,double>())
+        .def(py::init<int,int,int,double,double,double>())
         .def("cleanup", &GaussMap::cleanup)
         .def("addRadarData", &GaussMap::addRadarData)
         .def("asArray", &GaussMap::asArray);

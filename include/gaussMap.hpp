@@ -31,7 +31,7 @@ class GaussMap{
         bool allClean;
 
         float* radarDistri;    // normal distrubution info. 
-        float* radarDistri_c;  // 0: stddev, 1: mean
+        float* radarDistri_c;  // 0: stddev, 1: mean, 2: distance cutoff
 
         // radar point info
         // populated after addRadarData called
@@ -40,7 +40,7 @@ class GaussMap{
 
         void calcRadarMap();
     public:
-        GaussMap(int width, int height, int cell_res, double radarStdDev, double radarMean);
+        GaussMap(int width, int height, int cell_res, double radarStdDev, double radarMean, double radarCutoff);
         ~GaussMap();
         void cleanup();
         void addRadarData(py::array_t<RadarData_t, py::array::c_style | py::array::forcecast> array);

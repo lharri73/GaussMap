@@ -6,7 +6,7 @@
 __device__
 size_t array_index(size_t row, size_t col, array_info *info){
     // helper function to find the array index
-    return row * info->rows + col;
+    return row * info->cols + col;
 }
 
 template <typename T>
@@ -26,6 +26,7 @@ Position indexDiff(size_t row, size_t col, RadarData_t *radarData, size_t radarP
     
     float rPosx = radarData[array_index(threadIdx.x, 0, radarInfo)];
     float rPosy = radarData[array_index(threadIdx.x, 1, radarInfo)];
+    printf("rpos %d x: %f, y: %f\n", threadIdx.x, rPosx, rPosy);
 
     Position difference(
         pos.x - rPosx,
@@ -43,18 +44,19 @@ Position index_to_position(size_t row, size_t col, array_info *info, array_rel *
     float y_offset = (row - center_y) * -1;     // flip the y axis so + is in the direction of travel
 
     Position ret(
-        x_offset / relation->res,
-        y_offset / relation->res
+        x_offset / (float)relation->res,
+        y_offset / (float)relation->res
     );
     return ret;
 }
 
 __device__
-float calcPdf(float mean, float stdDev, float radius){
+float calcPdf(float stdDev, float mean, float radius){
     // calculate the pdf of the given radar point based on the radius
     float variance = pow(stdDev, 2);
     float first = (1 / stdDev) * rsqrt(2 * CUDART_PI_F);
-    float second = exp((-1/2) * pow(radius - mean, 2) / variance);
+    float exponent = -1 * pow(radius - mean, 2) / (2 * variance);
+    float second = exp(exponent);
     return first*second;
 }
 
@@ -71,8 +73,13 @@ void radarPointKernel(mapType_t* gaussMap,
             Position diff = indexDiff(row, col, 
                                               radarData, threadIdx.x, 
                                               radarInfo, mapInfo, mapRel);
-            // if(threadIdx.x == 0)
-            //     printf("diffx: %f, diffy: %f, radius: %f\n", diff.x, diff.y, diff.radius);
+            // don't calculate the pdf of this cell if it's too far away
+            if(diff.radius > distributionInfo[2])
+                continue;
+
+            float pdfVal = calcPdf(distributionInfo[0], distributionInfo[1], diff.radius);
+            // printf("pdf: %f\n", pdfVal);
+            atomicAdd(&gaussMap[array_index(row,col,mapInfo)], pdfVal);
         }
     }
 }
@@ -93,11 +100,11 @@ void GaussMap::calcRadarMap(){
     checkCudaError(cudaMalloc(&mapInfo_cuda, sizeof(struct Array_Info)));
     checkCudaError(cudaMalloc(&radarInfo_cuda, sizeof(struct Array_Info)));
     checkCudaError(cudaMalloc(&mapRel_cuda, sizeof(struct Array_Relationship)));
-    checkCudaError(cudaMalloc(&radarDistri_c, 2*sizeof(float)));
+    checkCudaError(cudaMalloc(&radarDistri_c, 3*sizeof(float)));
     checkCudaError(cudaMemcpy(mapInfo_cuda, tmpa, sizeof(struct Array_Info), cudaMemcpyHostToDevice));
     checkCudaError(cudaMemcpy(radarInfo_cuda, tmpb, sizeof(struct Array_Info), cudaMemcpyHostToDevice));
     checkCudaError(cudaMemcpy(mapRel_cuda, tmpc, sizeof(struct Array_Relationship), cudaMemcpyHostToDevice));
-    checkCudaError(cudaMemcpy(radarDistri_c, radarDistri, 2*sizeof(float), cudaMemcpyHostToDevice));
+    checkCudaError(cudaMemcpy(radarDistri_c, radarDistri, 3*sizeof(float), cudaMemcpyHostToDevice));
 
     free(tmpa);
     free(tmpb);
@@ -105,6 +112,7 @@ void GaussMap::calcRadarMap(){
 
 
     // dispatch the kernel with `numPoints` threads
+    printf("numPoints: %lu\n", numPoints);
     radarPointKernel<<<1,numPoints>>>(
         array,
         radarData,

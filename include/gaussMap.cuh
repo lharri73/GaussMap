@@ -16,7 +16,7 @@ __device__ Position indexDiff(size_t row, size_t col, RadarData_t *radarData,
 __device__ Position index_to_position(size_t row, size_t col, 
                                   array_info *info, array_rel *relation);
 
-__device__ float calcPdf(float mean, float stdDev, float radius);
+__device__ float calcPdf(float stdDev, float mean, float radius);
 
 __global__ void radarPointKernel(mapType_t* gaussMap, RadarData_t *radarData, 
                                  array_info* mapInfo, array_rel* mapRel, 
