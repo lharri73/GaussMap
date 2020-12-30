@@ -2,6 +2,10 @@ from pynuscenes.nuscenes_dataset import NuscenesDataset
 from tqdm import tqdm
 from gaussMap import GaussMap
 import numpy as np
+from PIL import Image
+
+# def scale(array, min, max):
+#     stdDev = (array - array.min() )
 
 class GaussMapWrapper:
     def __init__(self, version, split, dataset_dir, gmConfig):
@@ -21,9 +25,7 @@ class GaussMapWrapper:
             ## create the heatmap
             self.createMap()
             self.map.addRadarData(radarPoints)
-            # input()
-            ## call the destructor for python
-            self.map.cleanup()
+            # self.showImage()
             # input()
 
     def createMap(self):
@@ -34,3 +36,10 @@ class GaussMapWrapper:
             self.gmConfig.MapResolution,
             self.gmConfig.Radar.stdDev,
             self.gmConfig.Radar.mean)
+
+    def showImage(self):
+        array = self.map.asArray()
+        scaled = np.uint8(np.interp(array, (array.min(), array.max()), (0,255)))
+        img = Image.fromarray(scaled, 'L')
+        img.show()
+        input()

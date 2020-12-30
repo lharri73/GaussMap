@@ -30,8 +30,6 @@ GaussMap::GaussMap(int Width, int Height, int Cell_res, double radarStdDev, doub
 }
 
 GaussMap::~GaussMap(){
-    // there isn't a nice way to call destructors from 
-    // python, so we do it this way. 
     if(!allClean)
         cleanup();
 }
@@ -51,7 +49,7 @@ void GaussMap::cleanup(){
                 checkCudaError(cudaFree(radarInfo_cuda));
         }
     }
-
+    printf("called cleanup\n");
     allClean = true;
 }
 

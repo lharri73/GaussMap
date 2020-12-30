@@ -17,22 +17,36 @@ float radiusFromPos(T x, T y){
     return hypotf((float)x, (float)y);
 }
 
+__device__
+Position indexDiff(size_t row, size_t col, RadarData_t *radarData, size_t radarPointIdx, 
+                   array_info *radarInfo, array_info *mapInfo, array_rel *mapRel){
+    // Calculate the position of the cell at (row,col) relative to the radar point at 
+    // radarPointIdx
+    Position pos = index_to_position(row, col, mapInfo, mapRel);
+    
+    float rPosx = radarData[array_index(threadIdx.x, 0, radarInfo)];
+    float rPosy = radarData[array_index(threadIdx.x, 1, radarInfo)];
+
+    Position difference(
+        pos.x - rPosx,
+        pos.y - rPosy
+    );
+    return difference;
+}
+
 __device__ 
-position index_to_position(size_t row, size_t col, array_info *info, array_rel *relation){
+Position index_to_position(size_t row, size_t col, array_info *info, array_rel *relation){
     // find the position from center of map given cell index
-    // ret: dim3 (x,y,radius)
     float center_x = (float)(info->cols/2.0);
     float center_y = (float)(info->rows/2.0);
     float x_offset = col - center_x;
     float y_offset = (row - center_y) * -1;     // flip the y axis so + is in the direction of travel
 
-    position ret;
-    ret.x = x_offset / relation->res;
-    ret.y = y_offset / relation->res;
+    Position ret(
+        x_offset / relation->res,
+        y_offset / relation->res
+    );
     return ret;
-    // ret.x = x_offset / relation->res;
-    // ret.y = y_offset / relation->res;
-    // ret.z = radiusFromPos(ret.x, ret.y);
 }
 
 __device__
@@ -53,15 +67,12 @@ void radarPointKernel(mapType_t* gaussMap,
                       float* distributionInfo){
     for(size_t row = 0; row < mapInfo->rows; row++){
         for(size_t col = 0; col < mapInfo->cols; col++){
-            position pos = index_to_position(row, col, mapInfo, mapRel);
-            position radarPos;
-            radarPos.x = radarData[array_index(threadIdx.x, 0, radarInfo)];
-            radarPos.y = radarData[array_index(threadIdx.x, 1, radarInfo)];
-            position difference;
-            difference.x = pos.x - radarPos.x;
-            difference.y = pos.y - radarPos.y;
-            float radius = radiusFromPos(difference.x, difference.y);
-            // printf("posx: %f, radx: %f, dif: %f!\n", pos.x, radarPos.x, difference.x);
+            // find where the cell is relative to the radar point
+            Position diff = indexDiff(row, col, 
+                                              radarData, threadIdx.x, 
+                                              radarInfo, mapInfo, mapRel);
+            // if(threadIdx.x == 0)
+            //     printf("diffx: %f, diffy: %f, radius: %f\n", diff.x, diff.y, diff.radius);
         }
     }
 }
@@ -108,9 +119,26 @@ void GaussMap::calcRadarMap(){
         std::stringstream ss;
         ss << "radarPointKernel launch failed\n";
         ss << cudaGetErrorString(error);
-        throw std::string(ss.str());
+        throw std::runtime_error(ss.str());
     }
 
     // wait untill all threads sync
     cudaDeviceSynchronize();
+}
+
+
+//-----------------------------------------------------------------------------
+__device__ 
+Position::Position(float X, float Y) : x(X), y(Y){
+    radius = hypotf(x,y);
+}
+
+__device__
+Position::Position(){
+
+}
+
+__device__
+void Position::recalc(){
+    radius = hypotf(x,y);
 }
