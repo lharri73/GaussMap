@@ -4,6 +4,19 @@
 #include "utils.hpp"
 #include "Position.cuh"
 
+// simple class used to hold the position information passed between cuda functions
+class Position{
+    public:
+        __device__ Position(float x, float y);
+        __device__ Position();
+        __device__ void recalc();
+        
+        float x;
+        float y;
+        float radius;
+
+};
+
 // provides index of array given row, col, and array_info
 __device__ size_t array_index(size_t row, size_t col, array_info *info);
 
@@ -27,3 +40,7 @@ __device__ float calcPdf(float stdDev, float mean, float radius);
 __global__ void radarPointKernel(mapType_t* gaussMap, RadarData_t *radarData, 
                                 array_info* mapInfo, array_rel* mapRel, 
                                 array_info* radarInfo, float* distributionInfo);
+
+__global__
+void calcDerivativeKernel(float* f, array_info* fInfo,
+                    float *fprime, array_info *fPrimeInfo);
