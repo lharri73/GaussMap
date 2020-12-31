@@ -25,3 +25,7 @@ __pycache__
 
 ## Mac stuff
 .DS_Store
+
+## HUGE results files
+results/*
+!results/.keep
