@@ -30,6 +30,11 @@ class GaussMap{
 
         RadarData_t* radarData; // set to nullptr until received
         array_info radarInfo, *radarInfo_cuda;
+
+        float *arrayPrime, *arrayPrimePrime;        //first and second derivative
+        array_info primeInfo, *primeInfo_cuda;
+        array_info primePrimeInfo, *primePrimeInfo_cuda;
+
         bool allClean;
 
         float* radarDistri;    // normal distrubution info. 

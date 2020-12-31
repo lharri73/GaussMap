@@ -22,10 +22,16 @@ GaussMap::GaussMap(int Width, int Height, int Cell_res, double radarStdDev, doub
     radarDistri[1] = (float)radarMean;
     radarDistri[2] = (float)radarCutoff;
 
+    // this is all done so we can check if it has been allocated later
     radarData = nullptr;
+    arrayPrime = nullptr;
+    arrayPrimePrime = nullptr;
+
     mapInfo_cuda = nullptr;
     mapRel_cuda = nullptr;
     radarInfo_cuda = nullptr;
+    primeInfo_cuda = nullptr;
+    primePrimeInfo_cuda = nullptr;
 
     allClean = false;
 }
@@ -43,6 +49,11 @@ void GaussMap::cleanup(){
             checkCudaError(cudaFree(mapInfo_cuda));
         if(mapRel_cuda != nullptr)
             checkCudaError(cudaFree(mapRel_cuda));
+        if(arrayPrime != nullptr)
+            checkCudaError(cudaFree(arrayPrime));
+        if(arrayPrimePrime != nullptr)
+            checkCudaError(cudaFree(arrayPrimePrime));
+        
 
         if(radarData != nullptr){
             checkCudaError(cudaFree(radarData));

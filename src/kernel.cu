@@ -2,19 +2,10 @@
 #include <math_constants.h>     // CUDART_PI_F
 #include "gaussMap.cuh"
 
-
 __device__
 size_t array_index(size_t row, size_t col, array_info *info){
     // helper function to find the array index
     return row * info->cols + col;
-}
-
-template <typename T>
-__device__
-float radiusFromPos(T x, T y){
-    // return the radius from the position from origin (at center of map)
-    // x and y in meters
-    return hypotf((float)x, (float)y);
 }
 
 __device__
@@ -94,6 +85,7 @@ void GaussMap::calcRadarMap(){
     checkCudaError(cudaMalloc(&radarInfo_cuda, sizeof(struct Array_Info)));
     checkCudaError(cudaMalloc(&mapRel_cuda, sizeof(struct Array_Relationship)));
     checkCudaError(cudaMalloc(&radarDistri_c, 3*sizeof(float)));
+    
     checkCudaError(cudaMemcpy(mapInfo_cuda, &mapInfo, sizeof(struct Array_Info), cudaMemcpyHostToDevice));
     checkCudaError(cudaMemcpy(radarInfo_cuda, &radarInfo, sizeof(struct Array_Info), cudaMemcpyHostToDevice));
     checkCudaError(cudaMemcpy(mapRel_cuda, &mapRel, sizeof(struct Array_Relationship), cudaMemcpyHostToDevice));
@@ -120,5 +112,3 @@ void GaussMap::calcRadarMap(){
     // wait untill all threads sync
     cudaDeviceSynchronize();
 }
-
-

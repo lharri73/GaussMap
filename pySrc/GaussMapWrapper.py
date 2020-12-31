@@ -27,8 +27,10 @@ class GaussMapWrapper:
             self.map.addRadarData(radarPoints)
 
             ## vis functions
-            self.showImage()
-            self.showFrame(frame)
+            # self.showImage()
+            # self.showFrame(frame)
+            # self.map.derivative()
+            # print("done")
             # input()
 
     def createMap(self):

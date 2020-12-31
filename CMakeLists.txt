@@ -18,6 +18,7 @@ include_directories(
 add_library(gaussMap_cu STATIC
     src/kernel.cu
     src/derivative.cu
+    src/Position.cu
 )
 set_target_properties(gaussMap_cu PROPERTIES 
     CUDA_SEPARABLE_COMPILATION ON
@@ -50,4 +51,3 @@ set_property(TARGET gaussMap PROPERTY CXX_STANDARD 11)
 ## link together and with pybind11
 target_link_libraries(gaussMap PRIVATE gaussMap_cu)
 target_link_libraries(gaussMap PRIVATE pybind11::module)
-

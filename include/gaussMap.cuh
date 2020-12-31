@@ -7,10 +7,6 @@
 // provides index of array given row, col, and array_info
 __device__ size_t array_index(size_t row, size_t col, array_info *info);
 
-// uses CUDA math api to calculate the radius given x and y
-template <typename T>
-__device__ float radiusFromPos(T x, T y);
-
 // calculates the difference (in meters) from a radar point to a cell
 // returns a Position, including the radius and elementwise difference
 __device__ Position indexDiff(size_t row, size_t col, RadarData_t *radarData, 
