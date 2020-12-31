@@ -85,8 +85,7 @@ void GaussMap::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::ar
 
 // returns numpy array to python of gaussMap
 py::array_t<mapType_t> GaussMap::asArray(){
-    mapType_t* retArray;
-    retArray = (mapType_t*)malloc(sizeof(mapType_t) * mapInfo.cols * mapInfo.rows);
+    mapType_t* retArray = new mapType_t[mapInfo.cols * mapInfo.rows];
 
     cudaError_t error = cudaMemcpy(retArray, array, mapInfo.cols * mapInfo.rows * mapInfo.elementSize, cudaMemcpyDeviceToHost);
     checkCudaError(error);
@@ -107,5 +106,5 @@ PYBIND11_MODULE(gaussMap, m){
         .def(py::init<int,int,int,double,double,double>())
         .def("cleanup", &GaussMap::cleanup)
         .def("addRadarData", &GaussMap::addRadarData)
-        .def("asArray", &GaussMap::asArray);
+        .def("asArray", &GaussMap::asArray, py::return_value_policy::take_ownership);
 }
