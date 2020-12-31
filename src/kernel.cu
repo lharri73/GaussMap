@@ -89,28 +89,15 @@ void GaussMap::calcRadarMap(){
 
     // allocate this struct in shared memory so we don't have to copy
     // it to each kernel when it's needed
-    array_info *tmpa, *tmpb;
-    array_rel *tmpc;
-    tmpa = (array_info*)malloc(sizeof(struct Array_Info));
-    tmpb = (array_info*)malloc(sizeof(struct Array_Info));
-    tmpc = (array_rel*)malloc(sizeof(struct Array_Relationship));
-    memcpy(tmpa, &mapInfo, sizeof(struct Array_Info));
-    memcpy(tmpb, &radarInfo, sizeof(struct Array_Info));
-    memcpy(tmpc, &mapRel, sizeof(struct Array_Relationship));
 
     checkCudaError(cudaMalloc(&mapInfo_cuda, sizeof(struct Array_Info)));
     checkCudaError(cudaMalloc(&radarInfo_cuda, sizeof(struct Array_Info)));
     checkCudaError(cudaMalloc(&mapRel_cuda, sizeof(struct Array_Relationship)));
     checkCudaError(cudaMalloc(&radarDistri_c, 3*sizeof(float)));
-    checkCudaError(cudaMemcpy(mapInfo_cuda, tmpa, sizeof(struct Array_Info), cudaMemcpyHostToDevice));
-    checkCudaError(cudaMemcpy(radarInfo_cuda, tmpb, sizeof(struct Array_Info), cudaMemcpyHostToDevice));
-    checkCudaError(cudaMemcpy(mapRel_cuda, tmpc, sizeof(struct Array_Relationship), cudaMemcpyHostToDevice));
+    checkCudaError(cudaMemcpy(mapInfo_cuda, &mapInfo, sizeof(struct Array_Info), cudaMemcpyHostToDevice));
+    checkCudaError(cudaMemcpy(radarInfo_cuda, &radarInfo, sizeof(struct Array_Info), cudaMemcpyHostToDevice));
+    checkCudaError(cudaMemcpy(mapRel_cuda, &mapRel, sizeof(struct Array_Relationship), cudaMemcpyHostToDevice));
     checkCudaError(cudaMemcpy(radarDistri_c, radarDistri, 3*sizeof(float), cudaMemcpyHostToDevice));
-
-    free(tmpa);
-    free(tmpb);
-    free(tmpc);
-
 
     // dispatch the kernel with `numPoints` threads
     radarPointKernel<<<1,numPoints>>>(
@@ -135,23 +122,3 @@ void GaussMap::calcRadarMap(){
 }
 
 
-//-----------------------------------------------------------------------------
-// implementation of the Position class.
-// Because of the way the nvcc linker works, all device code must be contained
-// in the same file (or fought with using compiler flags and many errors until
-// you finally reach success...or give up because you have better things to do
-// like I did)
-__device__ 
-Position::Position(float X, float Y) : x(X), y(Y){
-    radius = hypotf(x,y);
-}
-
-__device__
-Position::Position(){
-
-}
-
-__device__
-void Position::recalc(){
-    radius = hypotf(x,y);
-}
