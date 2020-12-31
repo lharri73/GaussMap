@@ -1,8 +1,6 @@
 #include <cuda_runtime.h>
-#include <utility>
 #include "gaussMap.hpp"
 #include "utils.hpp"
-#include "Position.cuh"
 
 // simple class used to hold the position information passed between cuda functions
 class Position{

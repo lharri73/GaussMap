@@ -1,3 +1,9 @@
+/*****************************************************************************
+ * This contains the implementation of many different classes and the device *
+ * functions used in various kernels. Keeping the implementation in one file *
+ * allows the linker to perform link time optimization. Although they can be *
+ * seperated, it yeilds a major drawback on performance at runtime.          *
+ ****************************************************************************/
 #include <sstream>
 #include <math_constants.h>     // CUDART_PI_F
 #include "gaussMap.cuh"
