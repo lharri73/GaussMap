@@ -36,7 +36,8 @@ This requires PyTorch version 1.4.0, torchvision 0.5.0, and Cuda <= 10.2
 1. Download the pretrained model called `nuScenes_3Ddetection_e140` listed in `readme/MODEL_ZOO.md`.
    Place this in the `models` folder.
 
-2. Run the following script, adjusting dataset split for each split of the dataset you need
-```bash
-python test.py ddd --exp_id nusc_det_full --load_model ../models/nuScenes_3Ddetection_e140.pth --dataset nuscenes --dataset_version mini-train
-```
+1. Run the following script, adjusting `dataset_version` for each split of the dataset you need
+   ```bash
+   python test.py ddd --exp_id nusc_det_full --load_model ../models/nuScenes_3Ddetection_e140.pth --dataset nuscenes --dataset_version mini-train
+   ```
+   and copy the `.json` file with the results in the `exp/ddd/$exp_id$` folder to one of `results/CenterTrack/{train,val,mini-train,mini-val,test}`.

@@ -42,6 +42,8 @@ class GaussMap{
 
         void calcRadarMap();        // function used to setup the kernel. 
                                     // called from addRadarData()
+
+        float* calcDerivative();
     public:
         GaussMap(int width, int height, int cell_res, double radarStdDev, double radarMean, double radarCutoff);
         
@@ -55,4 +57,5 @@ class GaussMap{
 
         // returns the heatmap as a 2 dimensional numpy array
         py::array_t<mapType_t> asArray();
+        py::array_t<float> derivative();
 };

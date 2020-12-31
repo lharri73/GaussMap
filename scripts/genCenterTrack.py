@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 from nuscenes.eval.common.loaders import load_prediction
 from nuscenes.eval.detection.data_classes import DetectionBox

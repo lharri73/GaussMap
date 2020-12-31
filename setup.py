@@ -14,6 +14,9 @@ requirements = []
 with open('requirements.txt') as f:
     requirements = f.read().splitlines()
 
+with open('README.md') as f:
+    description = f.read()
+
 class CMakeExtension(Extension):
     def __init__(self, name, sourcedir=''):
         Extension.__init__(self, name, sources=[])
@@ -51,7 +54,7 @@ class CMakeBuild(build_ext):
             os.makedirs(self.build_temp)
         subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
         subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
-        print()
+        print("CMake Compilation Complete...")
 
 setup(
     name='gaussMap',
@@ -59,7 +62,7 @@ setup(
     author='Landon Harris',
     author_email='lharri73@vols.utk.edu',
     description='A Cuda implementation of gaussian heat maps',
-    long_description='',
+    long_description=description,
     ext_modules=[CMakeExtension('gaussMap')],
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,

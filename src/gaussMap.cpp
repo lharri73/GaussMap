@@ -101,10 +101,24 @@ py::array_t<mapType_t> GaussMap::asArray(){
     return py::array_t<mapType_t>(a);
 }
 
+py::array_t<float> GaussMap::derivative(){
+
+    // float* retArray = new array[]
+    py::buffer_info a(
+        nullptr,
+        sizeof(float),
+        py::format_descriptor<float>::format(),
+        2,
+        {1,1},
+        {sizeof(float) * 1, sizeof(float) * 1});
+    return py::array_t<float>(a);
+}
+
 PYBIND11_MODULE(gaussMap, m){
     py::class_<GaussMap>(m,"GaussMap")
         .def(py::init<int,int,int,double,double,double>())
         .def("cleanup", &GaussMap::cleanup)
         .def("addRadarData", &GaussMap::addRadarData)
-        .def("asArray", &GaussMap::asArray, py::return_value_policy::take_ownership);
+        .def("asArray", &GaussMap::asArray, py::return_value_policy::take_ownership)
+        .def("derivative", &GaussMap::derivative, py::return_value_policy::take_ownership);
 }
