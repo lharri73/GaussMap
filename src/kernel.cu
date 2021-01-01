@@ -107,6 +107,8 @@ void GaussMap::calcRadarMap(){
         radarDistri_c
     );
 
+    // wait untill all threads sync
+    cudaDeviceSynchronize();
     cudaError_t error = cudaGetLastError();
     if(error != cudaSuccess){
         std::stringstream ss;
@@ -115,8 +117,6 @@ void GaussMap::calcRadarMap(){
         throw std::runtime_error(ss.str());
     }
 
-    // wait untill all threads sync
-    cudaDeviceSynchronize();
 }
 
 //-----------------------------------------------------------------------------
@@ -159,7 +159,8 @@ void GaussMap::calcDerivative(){
         arrayPrime,
         primeInfo_cuda
     );
-
+    
+    cudaDeviceSynchronize();
     cudaError_t error = cudaGetLastError();
     if(error != cudaSuccess){
         std::stringstream ss;
@@ -168,7 +169,6 @@ void GaussMap::calcDerivative(){
         throw std::runtime_error(ss.str());
     }
 
-    cudaDeviceSynchronize();
     // now do it again...
     primePrimeInfo.rows = primeInfo.rows -2;
     primePrimeInfo.cols = primeInfo.cols -2;
@@ -186,6 +186,8 @@ void GaussMap::calcDerivative(){
         arrayPrimePrime,
         primePrimeInfo_cuda
     );
+    
+    cudaDeviceSynchronize();
     error = cudaGetLastError();
     if(error != cudaSuccess){
         std::stringstream ss;
@@ -193,8 +195,63 @@ void GaussMap::calcDerivative(){
         ss << cudaGetErrorString(error);
         throw std::runtime_error(ss.str());
     }
-    cudaDeviceSynchronize();
 
+}
+
+//-----------------------------------------------------------------------------
+// maxima locating
+
+__global__
+void calcMaxKernel(uint8_t *isMax, float* arrayPrime, 
+                   array_info *primeInfo, float* arrayPrimePrime, 
+                   array_info *primePrimeInfo){
+
+}
+
+std::vector<uint16_t> GaussMap::calcMax(){
+    if(!arrayPrime || !arrayPrimePrime) // make sure these are allocated
+        throw std::runtime_error("Derivative must be calculated before maxima can be located");
+
+    uint8_t *isMax_cuda;
+    checkCudaError(cudaMalloc(&isMax_cuda, sizeof(uint8_t) * primePrimeInfo.rows * primePrimeInfo.cols));
+
+    dim3 maxGridSize(primePrimeInfo.rows);
+    dim3 maxBlockSize(primePrimeInfo.cols);
+
+    calcMaxKernel<<<maxGridSize, maxBlockSize>>>(
+        isMax_cuda,
+        arrayPrime,
+        primeInfo_cuda,
+        arrayPrimePrime,
+        primePrimeInfo_cuda
+    );
+
+    cudaDeviceSynchronize();
+    cudaError_t error = cudaGetLastError();
+    if(error != cudaSuccess){
+        std::stringstream ss;
+        ss << "calcDerivativeKernel launch failed\n";
+        ss << cudaGetErrorString(error);
+        throw std::runtime_error(ss.str());
+    }
+
+    // copy back to host so we can iterate over it
+    uint8_t *isMax = (uint8_t*)calloc(sizeof(uint8_t), primePrimeInfo.rows * primePrimeInfo.cols);
+    checkCudaError(cudaMemcpy(isMax, isMax_cuda, sizeof(uint8_t) * primePrimeInfo.rows * primePrimeInfo.cols, cudaMemcpyDeviceToHost));
+    
+    // now we don't need the device memory since it's on the host
+    checkCudaError(cudaFree(isMax_cuda));
+
+    std::vector<uint16_t> ret;   // stored as (row,col,row,col,row,col,...)
+    for(uint16_t row = 0; row < primePrimeInfo.rows; row++){
+        for(uint16_t col = 0; col < primePrimeInfo.cols; col++){
+            if(isMax[(size_t)(row * primePrimeInfo.cols + col)]){
+                ret.push_back(row);
+                ret.push_back(col);
+            }
+        }
+    }
+    return ret;
 }
 
 //-----------------------------------------------------------------------------

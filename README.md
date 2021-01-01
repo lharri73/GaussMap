@@ -3,7 +3,7 @@
 ## Requirements
 - cmake >=3.17
 - pybind11 >=2.2 (installed with apt is easier)
-- CUDA (tested on 11.2)
+- CUDA (tested on 10.2 & 11.2)
 
 ## Installation
 Installation is simplified with python. 

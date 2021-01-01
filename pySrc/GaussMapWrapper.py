@@ -29,6 +29,7 @@ class GaussMapWrapper:
             ## vis functions
             self.showImage()
             # self.showDerivImage()
+            print(self.map.findMax())
             input()
             # self.showFrame(frame)
             # print("done")

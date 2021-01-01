@@ -112,6 +112,8 @@ py::array_t<mapType_t> GaussMap::asArray(){
     return py::array_t<mapType_t>(a);
 }
 
+// calculate the first and second derivative of the heatmap and
+// return as a tuple (first, second) in a numpy array
 std::vector<py::array_t<float> > GaussMap::derivative(){
     calcDerivative();
     std::vector<py::array_t<float> > ret;
@@ -144,11 +146,33 @@ std::vector<py::array_t<float> > GaussMap::derivative(){
     return ret;
 }
 
+// return the indices of the local maxima of the gaussMap
+// Nx2 [[row,col],...]
+py::array_t<uint16_t> GaussMap::findMax(){
+
+    std::vector<uint16_t> values = calcMax();
+    uint16_t *vecData = (uint16_t*)malloc(values.size() * sizeof(uint16_t));
+    memcpy(vecData, values.data(), values.size() * sizeof(uint16_t));
+
+    int rows = values.size() /2;
+
+    py::buffer_info ret(
+        vecData,
+        sizeof(uint16_t),
+        py::format_descriptor<uint16_t>::format(),
+        2,
+        {rows,2},
+        {sizeof(uint16_t) * 2, sizeof(uint16_t) * 1}
+    );
+    return py::array_t<uint16_t>(ret);
+}
+
 PYBIND11_MODULE(gaussMap, m){
     py::class_<GaussMap>(m,"GaussMap")
         .def(py::init<int,int,int,double,double,double>())
         .def("cleanup", &GaussMap::cleanup)
         .def("addRadarData", &GaussMap::addRadarData)
         .def("asArray", &GaussMap::asArray, py::return_value_policy::take_ownership)
-        .def("derivative", &GaussMap::derivative, py::return_value_policy::take_ownership);
+        .def("derivative", &GaussMap::derivative, py::return_value_policy::take_ownership)
+        .def("findMax", &GaussMap::findMax, py::return_value_policy::take_ownership);
 }

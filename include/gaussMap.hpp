@@ -51,6 +51,8 @@ class GaussMap{
                                     // called from addRadarData()
 
         void calcDerivative();
+
+        std::vector<uint16_t> calcMax();
     public:
         GaussMap(int width, int height, int cell_res, double radarStdDev, double radarMean, double radarCutoff);
         
@@ -65,4 +67,5 @@ class GaussMap{
         // returns the heatmap as a 2 dimensional numpy array
         py::array_t<mapType_t> asArray();
         std::vector<py::array_t<float> > derivative();
+        py::array_t<uint16_t> findMax();
 };
