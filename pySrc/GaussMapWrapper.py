@@ -27,9 +27,10 @@ class GaussMapWrapper:
             self.map.addRadarData(radarPoints)
 
             ## vis functions
-            # self.showImage()
+            self.showImage()
+            # self.showDerivImage()
+            input()
             # self.showFrame(frame)
-            # self.map.derivative()
             # print("done")
             # input()
 
@@ -50,11 +51,28 @@ class GaussMapWrapper:
         """
         Creates an image of the heatmap and displays it as greyscale
         """
+        f, axarr = plt.subplots(1,3)
         array = self.map.asArray()
         scaled = np.uint8(np.interp(array, (0, array.max()), (0,255)))
+        axarr[0].imshow(scaled, cmap="gray")
+        # plt.show(block=False)
+
+        first, second = self.map.derivative()
+        scaledDeriv = np.uint8(np.interp(first, (0,first.max()), (0,255)))
+        axarr[1].imshow(scaledDeriv, cmap="gray")
+        scaledsecond = np.uint8(np.interp(second, (0,second.max()), (0,255)))
+        axarr[2].imshow(scaledsecond, cmap="gray")
+
+        plt.show(block=False)
+
+    def showDerivImage(self):
+        """
+        Creates an image of the heatmap's derivative
+        """
+        array = self.map.derivative()
+        scaled = np.uint8(np.interp(array, (0,array.max()), (0,255)))
         plt.imshow(scaled, cmap="gray")
         plt.show(block=False)
-        input()
 
     def showFrame(self, frame):
         """

@@ -6,15 +6,18 @@
 - CUDA (tested on 11.2)
 
 ## Installation
-Installation is simplified with python. Simply run `python setup.py install` and dependencies will be installed and configured. 
+Installation is simplified with python. 
+Simply run `python setup.py install` and dependencies will be installed and configured. 
 
 ## Getting Started
-1. Follow the install steps to setup the python library
+1. Follow the install steps above to setup the python library.
 
 1. Run CenterTrack on all splits of the nuscenes dataset. 
 
    These will be pickled together to allow for faster loading later. If you don't need all of them 
    (for example, only the test for evaluation, then you can only run the test set)
+
+1. From the root of this repository, run `./pySrc/main.py [nuscenes_version] [nuscenes_split] [nuscenes_root]`
 
 
 ## Running CenterTrack

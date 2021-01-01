@@ -2,8 +2,10 @@
 
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <pybind11/stl.h>
 #include <cstdlib>
 #include <cuda_runtime.h>
+#include <vector>
 
 namespace py = pybind11;
 
@@ -48,7 +50,7 @@ class GaussMap{
         void calcRadarMap();        // function used to setup the kernel. 
                                     // called from addRadarData()
 
-        float* calcDerivative();
+        void calcDerivative();
     public:
         GaussMap(int width, int height, int cell_res, double radarStdDev, double radarMean, double radarCutoff);
         
@@ -62,5 +64,5 @@ class GaussMap{
 
         // returns the heatmap as a 2 dimensional numpy array
         py::array_t<mapType_t> asArray();
-        py::array_t<float> derivative();
+        std::vector<py::array_t<float> > derivative();
 };

@@ -122,13 +122,23 @@ void GaussMap::calcRadarMap(){
 //-----------------------------------------------------------------------------
 // Derivative code implementation
 __global__
-void calcDerivativeKernel(float* f, array_info *fInfo, float* fprime, array_info *fPrimeInfo){
+void calcDerivativeKernel(float* f, array_info *fInfo, float* fPrime, array_info *fPrimeInfo){
     // https://en.wikipedia.org/wiki/Finite_difference#Multivariate_finite_differences 
     // ^ 5th equation
+    size_t row,col;
+    row = threadIdx.x +1;
+    col = blockIdx.x +1;
+    float first, second, third, fourth;
+    first = f[array_index(row+1, col+1, fInfo)];
+    second = f[array_index(row+1, col-1, fInfo)];
+    third = f[array_index(row-1, col+1, fInfo)];
+    fourth = f[array_index(row-1, col-1, fInfo)];
 
+    fPrime[array_index(threadIdx.x, blockIdx.x, fPrimeInfo)] = (first - second - third + fourth) / 4.0;
+    // printf("%d %d %d | %d %d %d\n", threadIdx.x, threadIdx.y, threadIdx.z, blockIdx.x, blockIdx.y, blockIdx.z);
 }
 
-float* GaussMap::calcDerivative(){
+void GaussMap::calcDerivative(){
     primeInfo.rows = mapInfo.rows -2;
     primeInfo.cols = mapInfo.cols -2;
     primeInfo.elementSize = sizeof(float);
@@ -141,7 +151,9 @@ float* GaussMap::calcDerivative(){
     checkCudaError(cudaMalloc(&arrayPrime, sizeof(float) * primeInfo.rows * primeInfo.cols));
 
     // dispatch the kernel with a single thread per cell
-    calcDerivativeKernel<<<primeInfo.rows, primeInfo.cols>>>(
+    dim3 primeGridSize(primeInfo.rows);
+    dim3 primeBlockSize(primeInfo.cols);
+    calcDerivativeKernel<<<primeGridSize,primeBlockSize>>>(
         array,
         mapInfo_cuda,
         arrayPrime,
@@ -157,8 +169,32 @@ float* GaussMap::calcDerivative(){
     }
 
     cudaDeviceSynchronize();
+    // now do it again...
+    primePrimeInfo.rows = primeInfo.rows -2;
+    primePrimeInfo.cols = primeInfo.cols -2;
+    primePrimeInfo.elementSize = sizeof(float);
 
-    return nullptr;
+    checkCudaError(cudaMalloc(&primePrimeInfo_cuda, sizeof(struct Array_Info)));
+    checkCudaError(cudaMemcpy(primePrimeInfo_cuda, &primePrimeInfo, sizeof(struct Array_Info), cudaMemcpyHostToDevice));
+    checkCudaError(cudaMalloc(&arrayPrimePrime, sizeof(float) * primePrimeInfo.rows * primePrimeInfo.cols));
+
+    dim3 primePrimeGridSize(primePrimeInfo.rows);
+    dim3 primePrimeBlockSize(primePrimeInfo.cols);
+    calcDerivativeKernel<<<primePrimeGridSize,primePrimeBlockSize>>>(
+        arrayPrime,
+        primeInfo_cuda,
+        arrayPrimePrime,
+        primePrimeInfo_cuda
+    );
+    error = cudaGetLastError();
+    if(error != cudaSuccess){
+        std::stringstream ss;
+        ss << "calcDerivativeKernel launch failed\n";
+        ss << cudaGetErrorString(error);
+        throw std::runtime_error(ss.str());
+    }
+    cudaDeviceSynchronize();
+
 }
 
 //-----------------------------------------------------------------------------

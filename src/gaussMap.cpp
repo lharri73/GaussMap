@@ -112,17 +112,36 @@ py::array_t<mapType_t> GaussMap::asArray(){
     return py::array_t<mapType_t>(a);
 }
 
-py::array_t<float> GaussMap::derivative(){
+std::vector<py::array_t<float> > GaussMap::derivative(){
+    calcDerivative();
+    std::vector<py::array_t<float> > ret;
+    float* firstDeriv = new float[primeInfo.cols * primeInfo.rows];
 
-    // float* retArray = new array[]
+    checkCudaError(cudaMemcpy(firstDeriv, arrayPrime, primeInfo.cols * primeInfo.rows * primeInfo.elementSize, cudaMemcpyDeviceToHost));
+
     py::buffer_info a(
-        nullptr,
+        firstDeriv,
         sizeof(float),
         py::format_descriptor<float>::format(),
         2,
-        {1,1},
-        {sizeof(float) * 1, sizeof(float) * 1});
-    return py::array_t<float>(a);
+        {primeInfo.rows, primeInfo.cols},
+        {sizeof(float) * primeInfo.cols, sizeof(float) * 1});
+    
+    ret.push_back(py::array_t<float>(a));
+
+    float* secondDeriv = new float[primePrimeInfo.cols * primePrimeInfo.rows];
+    checkCudaError(cudaMemcpy(secondDeriv, arrayPrimePrime, primePrimeInfo.cols * primePrimeInfo.rows * primeInfo.elementSize, cudaMemcpyDeviceToHost));
+    
+    py::buffer_info b(
+        secondDeriv,
+        sizeof(float),
+        py::format_descriptor<float>::format(),
+        2,
+        {primePrimeInfo.rows, primePrimeInfo.cols},
+        {sizeof(float) * primePrimeInfo.cols, sizeof(float) * 1});
+    ret.push_back(py::array_t<float>(b));
+
+    return ret;
 }
 
 PYBIND11_MODULE(gaussMap, m){
