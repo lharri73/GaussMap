@@ -66,7 +66,7 @@ class GaussMapWrapper:
         maxima = self.map.findMax()
         np.savetxt("maxima.txt", maxima)
         axarr[3].imshow(scaled, cmap='gray')
-        axarr[3].plot(maxima[:,0], maxima[:,1], ',')
+        axarr[3].plot(maxima[:,1], maxima[:,0], ',')
 
         plt.show(block=False)
 

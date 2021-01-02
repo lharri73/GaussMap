@@ -208,7 +208,7 @@ void calcMaxKernel(uint8_t *isMax, float* arrayPrime,
     int row = threadIdx.x;
     int col = blockIdx.x;
 
-    if(arrayPrime[array_index(row+1,col+1, primeInfo)] == 0.0 && arrayPrimePrime[array_index(row,col,primePrimeInfo)] > 0.0)
+    if(arrayPrime[array_index(row+1,col+1, primeInfo)] == 0.0 && arrayPrimePrime[array_index(row,col,primePrimeInfo)] < 0.0)
         isMax[array_index(row,col,primePrimeInfo)] = 1;
         // printf("prime: %f, primePrime: %f\n", arrayPrime[array_index(row+1,col+1, primeInfo)], arrayPrimePrime[array_index(row,col,primePrimeInfo)]);
     else
