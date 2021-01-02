@@ -28,8 +28,6 @@ class GaussMapWrapper:
 
             ## vis functions
             self.showImage()
-            # self.showDerivImage()
-            print(self.map.findMax())
             input()
             # self.showFrame(frame)
             # print("done")
@@ -52,10 +50,11 @@ class GaussMapWrapper:
         """
         Creates an image of the heatmap and displays it as greyscale
         """
-        f, axarr = plt.subplots(1,3)
+        f, axarr = plt.subplots(1,4)
         array = self.map.asArray()
         scaled = np.uint8(np.interp(array, (0, array.max()), (0,255)))
         axarr[0].imshow(scaled, cmap="gray")
+        
         # plt.show(block=False)
 
         first, second = self.map.derivative()
@@ -63,6 +62,11 @@ class GaussMapWrapper:
         axarr[1].imshow(scaledDeriv, cmap="gray")
         scaledsecond = np.uint8(np.interp(second, (0,second.max()), (0,255)))
         axarr[2].imshow(scaledsecond, cmap="gray")
+        
+        maxima = self.map.findMax()
+        np.savetxt("maxima.txt", maxima)
+        axarr[3].imshow(scaled, cmap='gray')
+        axarr[3].plot(maxima[:,0], maxima[:,1], ',')
 
         plt.show(block=False)
 

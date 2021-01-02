@@ -3,7 +3,10 @@ import os
 from nuscenes.eval.common.loaders import load_prediction
 from nuscenes.eval.detection.data_classes import DetectionBox
 from nuscenes.nuscenes import NuScenes
+from pynuscenes.utils.nuscenes_utils import global_to_vehicle, vehicle_to_global
 from tqdm import tqdm
+from spinners import Spinners
+from halo import Halo
 
 import pickle
 
@@ -12,7 +15,7 @@ class_name = {
       'construction_vehicle': 4.0, 'pedestrian': 5.0, 'motorcycle': 6.0, 'bicycle': 7.0,
       'traffic_cone': 8.0, 'barrier': 9.0, 'radar': 10.0}
 
-SPLIT_TO_VER={'val': 'v1.0-trainval', 'train': 'v1.0-trainval', 'test': 'v1.0-test', 'mini-val': 'v1.0-mini', 'mini-train': 'v1.0-mini'}
+SPLIT_TO_VER={'mini-val': 'v1.0-mini', 'val': 'v1.0-trainval', 'train': 'v1.0-trainval', 'test': 'v1.0-test', 'mini-train': 'v1.0-mini'}
 
 def main():
     if os.path.exists('results/CenterTrack/parsed.pkl'):
@@ -32,7 +35,14 @@ def parseVersion(version, split):
         print("could not find 'results/CenterTrack/{}.json'...skipping".format(split))
         return None
     nusc = NuScenes(version=version, dataroot='/DATA/datasets/nuscenes', verbose=True)
+
+    spinner = Halo(text="Loading predictions", spinner=Spinners.dots12)
+    spinner.start()
+
     camBoxes, meta = load_prediction("results/CenterTrack/{}.json".format(split), 500, DetectionBox, verbose=True)
+    print()
+    spinner.stop()
+
     objs = {}
     for sample, dic in tqdm(camBoxes.boxes.items(), position=1):
         sampleList = []
@@ -42,7 +52,7 @@ def parseVersion(version, split):
         pose_rec = nusc.get('ego_pose', sd_record['ego_pose_token'])
 
         for item in dic:
-            item = global_to_vehicle(item, pose_rec, True)
+            item = global_to_vehicle(item, pose_rec)
             if item.detection_score < .2: continue
             curList = [item.translation[0], item.translation[1], class_name[item.detection_name]]
             sampleList.append(curList)

@@ -205,7 +205,14 @@ __global__
 void calcMaxKernel(uint8_t *isMax, float* arrayPrime, 
                    array_info *primeInfo, float* arrayPrimePrime, 
                    array_info *primePrimeInfo){
+    int row = threadIdx.x;
+    int col = blockIdx.x;
 
+    if(arrayPrime[array_index(row+1,col+1, primeInfo)] == 0.0 && arrayPrimePrime[array_index(row,col,primePrimeInfo)] > 0.0)
+        isMax[array_index(row,col,primePrimeInfo)] = 1;
+        // printf("prime: %f, primePrime: %f\n", arrayPrime[array_index(row+1,col+1, primeInfo)], arrayPrimePrime[array_index(row,col,primePrimeInfo)]);
+    else
+        isMax[array_index(row,col,primePrimeInfo)] = 0;
 }
 
 std::vector<uint16_t> GaussMap::calcMax(){
@@ -245,9 +252,9 @@ std::vector<uint16_t> GaussMap::calcMax(){
     std::vector<uint16_t> ret;   // stored as (row,col,row,col,row,col,...)
     for(uint16_t row = 0; row < primePrimeInfo.rows; row++){
         for(uint16_t col = 0; col < primePrimeInfo.cols; col++){
-            if(isMax[(size_t)(row * primePrimeInfo.cols + col)]){
-                ret.push_back(row);
-                ret.push_back(col);
+            if(isMax[(size_t)(row * primePrimeInfo.cols + col)] == 1){
+                ret.push_back(row+4);
+                ret.push_back(col+4);
             }
         }
     }

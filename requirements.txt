@@ -1,6 +1,8 @@
 argparse
+halo
 matplotlib
 nuscenes-devkit==1.1.1
 nuscenes_dataset        # aka pynuscenes
 open3d
+spinners
 tqdm
