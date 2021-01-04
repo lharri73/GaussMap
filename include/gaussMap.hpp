@@ -6,6 +6,8 @@
 #include <cstdlib>
 #include <cuda_runtime.h>
 #include <vector>
+#include <map>
+#include <yaml-cpp/yaml.h>
 
 namespace py = pybind11;
 
@@ -33,26 +35,25 @@ class GaussMap{
         RadarData_t* radarData; // set to nullptr until received
         array_info radarInfo, *radarInfo_cuda;
 
-        float *arrayPrime, *arrayPrimePrime;        //first and second derivative
-        array_info primeInfo, *primeInfo_cuda;
-        array_info primePrimeInfo, *primePrimeInfo_cuda;
+        float* cameraData;       // set to nullptr until received
+        array_info cameraInfo, *cameraInfo_cuda;
+        float* cameraDistri;
+        float* cameraDistri_c;
 
         bool allClean;
 
         float* radarDistri;    // normal distrubution info. 
         float* radarDistri_c;  // 0: stddev, 1: mean, 2: distance cutoff
 
-        // radar point info
-        // populated after addRadarData called
-        size_t numPoints;
-        size_t radarFeatures;
-
         void calcRadarMap();        // function used to setup the kernel. 
                                     // called from addRadarData()
 
+        void calcCameraMap();       // function used to setup the kernel. 
+                                    // called from addCameraData()
+
         std::vector<uint16_t> calcMax();
     public:
-        GaussMap(int width, int height, int cell_res, double radarStdDev, double radarMean, double radarCutoff);
+        GaussMap(const std::string params);
         
         // destructor functions
         ~GaussMap();
@@ -61,6 +62,7 @@ class GaussMap{
         // used to add radar data to the map. (can only be called once) TODO: make sure only called once
         // takes a contiguous, 2 dimensional numpy array
         void addRadarData(py::array_t<RadarData_t, py::array::c_style | py::array::forcecast> array);
+        void addCameraData(py::array_t<RadarData_t, py::array::c_style | py::array::forcecast> array);
 
         // returns the heatmap as a 2 dimensional numpy array
         py::array_t<mapType_t> asArray();

@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 import open3d as o3d
 
 class GaussMapWrapper:
-    def __init__(self, version, split, dataset_dir, gmConfig):
+    def __init__(self, version, split, dataset_dir, centerTrackRes):
         self.nusc = NuscenesDataset(dataset_dir, version, split, 'config/cfg.yml')
-        self.gmConfig = gmConfig.GaussMap
+        self.centerTrack = centerTrackRes
 
     def run(self):
         for frame in tqdm(self.nusc):
@@ -17,6 +17,8 @@ class GaussMapWrapper:
 
             ## an Nx18 array of radar points (after the transform)
             radarPoints = radarFrame['pointcloud'].points.T
+            cameraPoints = np.array(self.centerTrack[frame['sample_token']])
+
             # np.savetxt("radar.txt", radarPoints[:,:2])
 
             #TODO: get camera points
@@ -25,9 +27,7 @@ class GaussMapWrapper:
             self.createMap()
 
             self.map.addRadarData(radarPoints)
-            # self.map.derivative()
-            ## vis functions
-            self.showImage()
+            self.showImage(cameraPoints)         
             input()
             self.showFrame(frame)
             # print("done")
@@ -38,25 +38,22 @@ class GaussMapWrapper:
         initializes the heatmap with config parameters from config file
         See include/gaussMap.hpp for full construction signature
         """
-        self.map = GaussMap(
-            self.gmConfig.MapWidth, 
-            self.gmConfig.MapHeight,
-            self.gmConfig.MapResolution,
-            self.gmConfig.Radar.stdDev,
-            self.gmConfig.Radar.mean,
-            self.gmConfig.Radar.radiusCutoff)
+        self.map = GaussMap('config/map.yml')
 
-    def showImage(self):
+    def showImage(self, camPoints):
         """
         Creates an image of the heatmap and displays it as greyscale
         """
-        f, axarr = plt.subplots(1,2)
+        f, axarr = plt.subplots(1,3)
         array = self.map.asArray()
         scaled = np.uint8(np.interp(array, (0, array.max()), (0,255)))
         axarr[0].imshow(scaled, cmap="gray")
-        
-        # plt.show(block=False)
-        
+
+        self.map.addCameraData(camPoints)
+        array = self.map.asArray()
+        scaled = np.uint8(np.interp(array, (0, array.max()), (0,255)))
+        axarr[1].imshow(scaled, cmap="gray")
+               
         maxima = self.map.findMax()
         # np.savetxt("maxima.txt", maxima)
         axarr[2].imshow(scaled, cmap='gray')
@@ -77,9 +74,16 @@ class GaussMapWrapper:
         rpcd = o3d.geometry.PointCloud()
         rpcd.points = o3d.utility.Vector3dVector(frame['radar']['pointcloud'].points[:3,:].T)
         rpcd.paint_uniform_color(np.array([1,0,0])) ## Red
+
+        cpcd = o3d.geometry.PointCloud()
+        ctArray = np.array(self.centerTrack[frame['sample_token']])
+        ctArray[:,2] = 0
+        cpcd.points = o3d.utility.Vector3dVector(ctArray)
+        cpcd.paint_uniform_color(np.array([0,1,0])) ## Red
         
-        vis.add_geometry(pcd)
+        # vis.add_geometry(pcd)
         vis.add_geometry(rpcd)
+        vis.add_geometry(cpcd)
         ctr = vis.get_view_control()
 
         # ctr.set_up(np.array([1,0,0]))

@@ -3,6 +3,7 @@ import argparse
 from GaussMapWrapper import GaussMapWrapper
 import yaml
 from easydict import EasyDict as edict
+import pickle
 
 def parseArgs():
     parser = argparse.ArgumentParser(description='Gauss Map evaluation for the Nuscenes Dataset')
@@ -16,17 +17,22 @@ def main():
     args = parseArgs()
 
     ## set up the version and split...To keep the cmd line arguments simple
+
     if args.version == 'v1.0-mini':
         split = 'mini_train' if args.split == 'train' else 'mini_val'
     else:
         split = args.split
 
-    config = {}
-    with open('config/cfg.yml') as f:
-        config = edict(yaml.safe_load(f))
+    centerTrackRes = {}
+    with open("results/CenterTrack/parsed.pkl", "rb") as f:
+        parsed = pickle.load(f)
+        if args.version == 'v1.0-mini':
+            tmpSplit = 'mini-train' if args.split == 'train' else 'mini_mini-valval'
+        else:
+            tmpSplit = args.split
+        centerTrackRes = parsed[tmpSplit]
 
-
-    gm = GaussMapWrapper(args.version, split, args.dataset_location, config)
+    gm = GaussMapWrapper(args.version, split, args.dataset_location, centerTrackRes)
 
     gm.run()
 

@@ -3,35 +3,41 @@
 #include <iostream>
 
 // allocates memory for the map
-GaussMap::GaussMap(int Width, int Height, int Cell_res, double radarStdDev, double radarMean, double radarCutoff){
-    mapInfo.rows = Height * Cell_res;
-    mapInfo.cols = Width * Cell_res;
-    mapInfo.elementSize = sizeof(mapType_t);
+GaussMap::GaussMap(const std::string params){
+    YAML::Node config = YAML::LoadFile(params);
 
-    mapRel.width = Width;
-    mapRel.height = Height;
-    mapRel.res = Cell_res;
+    mapRel.height = config["MapHeight"].as<int>();
+    mapRel.width = config["MapWidth"].as<int>();
+    mapRel.res = config["MapResolution"].as<int>();
+
+    mapInfo.cols = mapRel.width * mapRel.res;
+    mapInfo.rows = mapRel.height * mapRel.res;
+    mapInfo.elementSize = sizeof(mapType_t);
     // allocate memory for the array
-    cudaError_t error = cudaMalloc(&array, mapInfo.cols * mapInfo.rows * mapInfo.elementSize);
-    checkCudaError(error);
-    error = cudaMemset(array, 0, mapInfo.cols * mapInfo.rows * mapInfo.elementSize);
-    checkCudaError(error);
+    checkCudaError(cudaMalloc(&array, mapInfo.cols * mapInfo.rows * mapInfo.elementSize));
+    checkCudaError(cudaMemset(array, 0, mapInfo.cols * mapInfo.rows * mapInfo.elementSize));
 
     radarDistri = (float*)calloc(3, sizeof(float));
-    radarDistri[0] = (float)radarStdDev;
-    radarDistri[1] = (float)radarMean;
-    radarDistri[2] = (float)radarCutoff;
+    radarDistri[0] = config["Radar"]["StdDev"].as<float>();
+    radarDistri[1] = config["Radar"]["Mean"].as<float>();
+    radarDistri[2] = config["Radar"]["RadCutoff"].as<float>();
+
+    cameraDistri = (float*)calloc(3, sizeof(float));
+    cameraDistri[0] = config["Camera"]["StdDev"].as<float>();
+    cameraDistri[1] = config["Camera"]["Mean"].as<float>();
+    cameraDistri[2] = config["Camera"]["RadCutoff"].as<float>();
 
     // this is all done so we can check if it has been allocated later
     radarData = nullptr;
-    arrayPrime = nullptr;
-    arrayPrimePrime = nullptr;
+    cameraData = nullptr;
 
     mapInfo_cuda = nullptr;
     mapRel_cuda = nullptr;
     radarInfo_cuda = nullptr;
-    primeInfo_cuda = nullptr;
-    primePrimeInfo_cuda = nullptr;
+    cameraInfo_cuda = nullptr;
+
+    radarDistri_c = nullptr;
+    cameraDistri_c = nullptr;
 
     allClean = false;
 }
@@ -48,18 +54,26 @@ void GaussMap::cleanup(){
         if(mapInfo_cuda != nullptr)
             checkCudaError(cudaFree(mapInfo_cuda));
         if(mapRel_cuda != nullptr)
-            checkCudaError(cudaFree(mapRel_cuda));
-        if(arrayPrime != nullptr)
-            checkCudaError(cudaFree(arrayPrime));
-        if(arrayPrimePrime != nullptr)
-            checkCudaError(cudaFree(arrayPrimePrime));
-        
+            checkCudaError(cudaFree(mapRel_cuda));      
 
         if(radarData != nullptr){
             checkCudaError(cudaFree(radarData));
             if(radarInfo_cuda != nullptr)
                 checkCudaError(cudaFree(radarInfo_cuda));
         }
+        if(cameraData != nullptr){
+            checkCudaError(cudaFree(cameraData));
+            if(cameraInfo_cuda != nullptr)
+                checkCudaError(cudaFree(cameraInfo_cuda));
+        }
+        free(radarDistri);
+        free(cameraDistri);
+        if(cameraDistri_c != nullptr)
+            checkCudaError(cudaFree(cameraDistri_c));
+        
+        if(radarDistri_c != nullptr)
+            checkCudaError(cudaFree(radarDistri_c));
+
     }
     allClean = true;
 }
@@ -67,6 +81,8 @@ void GaussMap::cleanup(){
 // this template py:array_t forces the numpy array to be passed without any strides
 // and favors a c-style array
 void GaussMap::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::array::forcecast> array){
+    size_t radarPoints, radarFeatures;
+    
     // get information about the numpy array from python
     py::buffer_info buf1 = array.request();
     RadarData_t *data;
@@ -75,31 +91,58 @@ void GaussMap::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::ar
         throw std::runtime_error("Invalid datatype passed with radar data. Should be type: float (float32).");
     }
 
-    numPoints = buf1.shape[0];      // num points
+    radarPoints = buf1.shape[0];      // num points
     radarFeatures = buf1.shape[1];          // usually 18
     if(radarFeatures != 18){
         throw std::runtime_error("Got invalid shape of Radar Data. should be Nx18");
     }
     radarInfo.elementSize = sizeof(RadarData_t);
     radarInfo.cols = radarFeatures;
-    radarInfo.rows = numPoints;
+    radarInfo.rows = radarPoints;
 
     // allocate and copy the array to the GPU so we can run a kernel on it
-    cudaError_t error = cudaMalloc(&radarData, sizeof(RadarData_t) * numPoints * radarFeatures);
-    checkCudaError(error);
+    checkCudaError(cudaMalloc(&radarData, sizeof(RadarData_t) * radarPoints * radarFeatures));
 
-    error = cudaMemcpy(radarData, data, sizeof(RadarData_t) * numPoints * radarFeatures, cudaMemcpyHostToDevice);
-    checkCudaError(error);
+    checkCudaError(cudaMemcpy(radarData, data, sizeof(RadarData_t) * radarPoints * radarFeatures, cudaMemcpyHostToDevice));
 
     calcRadarMap();     // setup for the CUDA kernel. in GPU code
+}
+
+// this template py:array_t forces the numpy array to be passed without any strides
+// and favors a c-style array
+void GaussMap::addCameraData(py::array_t<float, py::array::c_style | py::array::forcecast> array){
+    size_t numPoints, numFeatures;
+
+    // get information about the numpy array from python
+    py::buffer_info buf1 = array.request();
+    float *data;
+    data = static_cast<float*>(buf1.ptr);
+    if(buf1.itemsize != sizeof(float)){
+        throw std::runtime_error("Invalid datatype passed with camera data. Should be type: float (float32).");
+    }
+
+    numPoints = buf1.shape[0];      // num points
+    numFeatures = buf1.shape[1];          // usually 3
+    if(numFeatures != 3){
+        throw std::runtime_error("Got invalid shape of camera Data. should be Nx3");
+    }
+    cameraInfo.elementSize = sizeof(float);
+    cameraInfo.cols = numFeatures;
+    cameraInfo.rows = numPoints;
+
+    // allocate and copy the array to the GPU so we can run a kernel on it
+    checkCudaError(cudaMalloc(&cameraData, sizeof(float) * numPoints * numFeatures));
+
+    checkCudaError(cudaMemcpy(cameraData, data, sizeof(float) * numPoints * numFeatures, cudaMemcpyHostToDevice));
+
+    calcCameraMap();     // setup for the CUDA kernel. in GPU code
 }
 
 // returns numpy array to python of gaussMap
 py::array_t<mapType_t> GaussMap::asArray(){
     mapType_t* retArray = new mapType_t[mapInfo.cols * mapInfo.rows];
 
-    cudaError_t error = cudaMemcpy(retArray, array, mapInfo.cols * mapInfo.rows * mapInfo.elementSize, cudaMemcpyDeviceToHost);
-    checkCudaError(error);
+    checkCudaError(cudaMemcpy(retArray, array, mapInfo.cols * mapInfo.rows * mapInfo.elementSize, cudaMemcpyDeviceToHost));
 
     py::buffer_info a(
         retArray, 
@@ -135,9 +178,10 @@ py::array_t<uint16_t> GaussMap::findMax(){
 
 PYBIND11_MODULE(gaussMap, m){
     py::class_<GaussMap>(m,"GaussMap")
-        .def(py::init<int,int,int,double,double,double>())
+        .def(py::init<std::string>())
         .def("cleanup", &GaussMap::cleanup)
         .def("addRadarData", &GaussMap::addRadarData)
+        .def("addCameraData", &GaussMap::addCameraData)
         .def("asArray", &GaussMap::asArray, py::return_value_policy::take_ownership)
         .def("findMax", &GaussMap::findMax, py::return_value_policy::take_ownership);
 }

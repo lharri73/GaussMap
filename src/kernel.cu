@@ -11,7 +11,7 @@
 __device__
 size_t array_index(size_t row, size_t col, array_info *info){
     // helper function to find the array index
-    return row * info->cols + col;
+    return (row * info->cols) + col;
 }
 
 __device__
@@ -98,7 +98,7 @@ void GaussMap::calcRadarMap(){
     checkCudaError(cudaMemcpy(radarDistri_c, radarDistri, 3*sizeof(float), cudaMemcpyHostToDevice));
 
     // dispatch the kernel with `numPoints` threads
-    radarPointKernel<<<1,numPoints>>>(
+    radarPointKernel<<<1,radarInfo.rows>>>(
         array,
         radarData,
         mapInfo_cuda,
@@ -117,6 +117,35 @@ void GaussMap::calcRadarMap(){
         throw std::runtime_error(ss.str());
     }
 
+}
+
+//-----------------------------------------------------------------------------
+// Camera point stuff
+void GaussMap::calcCameraMap(){
+    checkCudaError(cudaMalloc(&cameraInfo_cuda, sizeof(struct Array_Info)));
+    checkCudaError(cudaMalloc(&cameraDistri_c, 3*sizeof(float)));
+
+    checkCudaError(cudaMemcpy(cameraInfo_cuda, &cameraInfo, sizeof(struct Array_Info), cudaMemcpyHostToDevice));
+    checkCudaError(cudaMemcpy(cameraDistri_c, cameraDistri, 3*sizeof(float), cudaMemcpyHostToDevice));
+
+    radarPointKernel<<<1,cameraInfo.rows>>>(
+        array,
+        cameraData,
+        mapInfo_cuda,
+        mapRel_cuda,
+        cameraInfo_cuda,
+        cameraDistri_c
+    );
+
+    // wait untill all threads sync
+    cudaDeviceSynchronize();
+    cudaError_t error = cudaGetLastError();
+    if(error != cudaSuccess){
+        std::stringstream ss;
+        ss << "radarPointKernel launch failed\n";
+        ss << cudaGetErrorString(error);
+        throw std::runtime_error(ss.str());
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -145,9 +174,6 @@ void calcMaxKernel(uint8_t *isMax, float* array,
 }
 
 std::vector<uint16_t> GaussMap::calcMax(){
-    if(!arrayPrime || !arrayPrimePrime) // make sure these are allocated
-        throw std::runtime_error("Derivative must be calculated before maxima can be located");
-
     uint8_t *isMax_cuda;
     checkCudaError(cudaMalloc(&isMax_cuda, sizeof(uint8_t) * mapInfo.rows * mapInfo.cols));
 
@@ -163,6 +189,7 @@ std::vector<uint16_t> GaussMap::calcMax(){
         mapInfo_cuda
     );
 
+    cudaDeviceSynchronize();
     cudaError_t error = cudaGetLastError();
     if(error != cudaSuccess){
         std::stringstream ss;
@@ -170,7 +197,6 @@ std::vector<uint16_t> GaussMap::calcMax(){
         ss << cudaGetErrorString(error);
         throw std::runtime_error(ss.str());
     }
-    cudaDeviceSynchronize();
 
     // copy back to host so we can iterate over it
     uint8_t *isMax = (uint8_t*)calloc(sizeof(uint8_t), mapInfo.rows * mapInfo.cols);

@@ -1,0 +1,13 @@
+MapWidth: 100          ## (int) Width of the heat map in meters
+MapHeight: 100        ## (int) Height of the heat map in meters
+MapResolution: 5      ## (int) Number of cells per meter along each linear axis.
+                      ## - Number of cells per square meter = MapResolution^2
+Radar:
+  StdDev: 1.0         ## (float) Standard deviation of each radar point's normal distribution
+  Mean: 0.0           ## (float) mean of each radar points normal distribution
+  RadCutoff: 3.0      ## (float) distance to cutoff distribution for each radar point (meters)
+
+Camera:
+  StdDev: 1.0
+  Mean: 0.0
+  RadCutoff: 3.0
