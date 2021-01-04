@@ -26,6 +26,11 @@ typedef struct Array_Relationship{
     size_t res;             // resolution (cells per linear meter)
 } array_rel;
 
+typedef struct CamVal{
+    uint32_t classVal;      // uint16 so it's aligned to dopuble word (32 bits)
+    float probability;      // value of pdf
+} camVal_t;
+
 class GaussMap{
     private:
         mapType_t* array;
@@ -36,7 +41,10 @@ class GaussMap{
         array_info radarInfo, *radarInfo_cuda;
 
         float* cameraData;       // set to nullptr until received
+        camVal_t* cameraClassData;
         array_info cameraInfo, *cameraInfo_cuda;
+        array_info camClassInfo, *camClassInfo_cuda;
+
         float* cameraDistri;
         float* cameraDistri_c;
 
@@ -67,4 +75,5 @@ class GaussMap{
         // returns the heatmap as a 2 dimensional numpy array
         py::array_t<mapType_t> asArray();
         py::array_t<uint16_t> findMax();
+        py::array_t<uint16_t> classes();
 };

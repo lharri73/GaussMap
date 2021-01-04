@@ -3,3 +3,4 @@
 #include <stdexcept>
 
 void checkCudaError(cudaError_t error);
+void safeCudaFree(void *ptr);

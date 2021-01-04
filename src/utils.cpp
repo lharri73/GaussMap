@@ -11,3 +11,8 @@ void checkCudaError(cudaError_t error){
         throw std::runtime_error(ss.str());
     }
 }
+
+void safeCudaFree(void *ptr){
+    if(ptr != nullptr)
+        checkCudaError(cudaFree(ptr));
+}

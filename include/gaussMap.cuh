@@ -12,7 +12,6 @@ class Position{
         float x;
         float y;
         float radius;
-
 };
 
 // provides index of array given row, col, and array_info
@@ -39,6 +38,10 @@ __global__ void radarPointKernel(mapType_t* gaussMap, RadarData_t *radarData,
                                 array_info* mapInfo, array_rel* mapRel, 
                                 array_info* radarInfo, float* distributionInfo);
 
+__global__ void camPointKernel(mapType_t* gaussMap, RadarData_t *camData, 
+                                array_info* mapInfo, array_rel* mapRel, 
+                                array_info* camInfo, float* distributionInfo,
+                                camVal_t* camClasVals, array_info* camClasInfo);
 __global__
 void calcMaxKernel(uint8_t *isMax, float* array, 
                    array_info *mapInfo);

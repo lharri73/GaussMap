@@ -44,7 +44,7 @@ class GaussMapWrapper:
         """
         Creates an image of the heatmap and displays it as greyscale
         """
-        f, axarr = plt.subplots(1,3)
+        f, axarr = plt.subplots(1,4)
         array = self.map.asArray()
         scaled = np.uint8(np.interp(array, (0, array.max()), (0,255)))
         axarr[0].imshow(scaled, cmap="gray")
@@ -58,6 +58,10 @@ class GaussMapWrapper:
         # np.savetxt("maxima.txt", maxima)
         axarr[2].imshow(scaled, cmap='gray')
         axarr[2].plot(maxima[:,1], maxima[:,0], ',', color='r')
+
+        classes = self.map.classes()
+        # cls_scaled = np.uint8(np.interp(classes, (0, array.max()), (0,255)))
+        axarr[3].imshow(classes, cmap='Paired')
 
         plt.show(block=False)
 

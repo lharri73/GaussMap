@@ -11,9 +11,18 @@ from halo import Halo
 import pickle
 
 class_name = {
-      'car': 0.0, 'truck': 1.0, 'bus': 2.0, 'trailer': 3.0, 
-      'construction_vehicle': 4.0, 'pedestrian': 5.0, 'motorcycle': 6.0, 'bicycle': 7.0,
-      'traffic_cone': 8.0, 'barrier': 9.0, 'radar': 10.0}
+      'car': 1.0, 
+      'truck': 2.0, 
+      'bus': 3.0, 
+      'trailer': 4.0, 
+      'construction_vehicle': 5.0, 
+      'pedestrian': 6.0, 
+      'motorcycle': 7.0, 
+      'bicycle': 8.0,
+      'traffic_cone': 9.0, 
+      'barrier': 10.0, 
+      'radar': 11.0
+}
 
 SPLIT_TO_VER={'mini-val': 'v1.0-mini', 'val': 'v1.0-trainval', 'train': 'v1.0-trainval', 'test': 'v1.0-test', 'mini-train': 'v1.0-mini'}
 

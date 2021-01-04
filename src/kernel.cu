@@ -121,20 +121,71 @@ void GaussMap::calcRadarMap(){
 
 //-----------------------------------------------------------------------------
 // Camera point stuff
+
+__global__ 
+void camPointKernel(mapType_t* gaussMap, 
+                    RadarData_t *camData, 
+                    array_info *mapInfo, 
+                    array_rel* mapRel, 
+                    array_info* camInfo,
+                    float* distributionInfo,
+                    camVal_t *camClassVals,
+                    array_info* camClassInfo){
+                          
+    for(size_t row = 0; row < mapInfo->rows; row++){
+        for(size_t col = 0; col < mapInfo->cols; col++){
+            // find where the cell is relative to the radar point
+            Position diff = indexDiff(row, col, 
+                                      camData, threadIdx.x, 
+                                      camInfo, mapInfo, mapRel);
+            // don't calculate the pdf of this cell if it's too far away
+            if(diff.radius > distributionInfo[2])
+                continue;
+
+            float pdfVal = calcPdf(distributionInfo[0], distributionInfo[1], diff.radius);
+            // printf("pdf: %f\n", pdfVal);
+            atomicAdd(&gaussMap[array_index(row,col,mapInfo)], pdfVal);
+
+            union {
+                camVal_t camVal;
+                unsigned long long int ulong;
+            } cat;
+
+            cat.ulong = 0; // initialize to 0
+            cat.camVal.probability = pdfVal;
+            cat.camVal.classVal = (uint32_t)camData[array_index(threadIdx.x, 2, camInfo)];
+            
+            atomicMax((unsigned long long*)&camClassVals[array_index(row,col,camClassInfo)], cat.ulong);
+        }
+    }
+}
+
 void GaussMap::calcCameraMap(){
+    camClassInfo.rows = mapInfo.rows;
+    camClassInfo.cols = mapInfo.cols;
+    camClassInfo.elementSize = sizeof(struct CamVal);
+
     checkCudaError(cudaMalloc(&cameraInfo_cuda, sizeof(struct Array_Info)));
+    checkCudaError(cudaMalloc(&camClassInfo_cuda, sizeof(struct Array_Info)));
     checkCudaError(cudaMalloc(&cameraDistri_c, 3*sizeof(float)));
 
     checkCudaError(cudaMemcpy(cameraInfo_cuda, &cameraInfo, sizeof(struct Array_Info), cudaMemcpyHostToDevice));
+    checkCudaError(cudaMemcpy(camClassInfo_cuda, &camClassInfo, sizeof(struct Array_Info), cudaMemcpyHostToDevice));
     checkCudaError(cudaMemcpy(cameraDistri_c, cameraDistri, 3*sizeof(float), cudaMemcpyHostToDevice));
 
-    radarPointKernel<<<1,cameraInfo.rows>>>(
+    // allocate the camera class array
+    checkCudaError(cudaMalloc(&cameraClassData, camClassInfo.elementSize * camClassInfo.rows * camClassInfo.cols));
+    checkCudaError(cudaMemset(cameraClassData, 0, camClassInfo.elementSize * camClassInfo.rows * camClassInfo.cols));
+
+    camPointKernel<<<1,cameraInfo.rows>>>(
         array,
         cameraData,
         mapInfo_cuda,
         mapRel_cuda,
         cameraInfo_cuda,
-        cameraDistri_c
+        cameraDistri_c,
+        cameraClassData,
+        camClassInfo_cuda
     );
 
     // wait untill all threads sync
@@ -142,7 +193,7 @@ void GaussMap::calcCameraMap(){
     cudaError_t error = cudaGetLastError();
     if(error != cudaSuccess){
         std::stringstream ss;
-        ss << "radarPointKernel launch failed\n";
+        ss << "camPointKernel launch failed\n";
         ss << cudaGetErrorString(error);
         throw std::runtime_error(ss.str());
     }
@@ -233,3 +284,6 @@ __device__
 void Position::recalc(){
     radius = hypotf(x,y);
 }
+
+//-----------------------------------------------------------------------------
+// 

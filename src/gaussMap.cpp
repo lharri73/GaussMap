@@ -30,11 +30,13 @@ GaussMap::GaussMap(const std::string params){
     // this is all done so we can check if it has been allocated later
     radarData = nullptr;
     cameraData = nullptr;
+    cameraClassData = nullptr;
 
     mapInfo_cuda = nullptr;
     mapRel_cuda = nullptr;
     radarInfo_cuda = nullptr;
     cameraInfo_cuda = nullptr;
+    camClassInfo_cuda = nullptr;
 
     radarDistri_c = nullptr;
     cameraDistri_c = nullptr;
@@ -50,29 +52,25 @@ GaussMap::~GaussMap(){
 void GaussMap::cleanup(){
     // performs the cleanup steps. Frees memory
     if(!allClean){
-        checkCudaError(cudaFree(array));
-        if(mapInfo_cuda != nullptr)
-            checkCudaError(cudaFree(mapInfo_cuda));
-        if(mapRel_cuda != nullptr)
-            checkCudaError(cudaFree(mapRel_cuda));      
+        safeCudaFree(array);
+        safeCudaFree(mapInfo_cuda);
+        safeCudaFree(mapRel_cuda);
 
         if(radarData != nullptr){
             checkCudaError(cudaFree(radarData));
-            if(radarInfo_cuda != nullptr)
-                checkCudaError(cudaFree(radarInfo_cuda));
+            safeCudaFree(radarInfo_cuda);
         }
         if(cameraData != nullptr){
             checkCudaError(cudaFree(cameraData));
-            if(cameraInfo_cuda != nullptr)
-                checkCudaError(cudaFree(cameraInfo_cuda));
+            safeCudaFree(cameraInfo_cuda);
         }
         free(radarDistri);
         free(cameraDistri);
-        if(cameraDistri_c != nullptr)
-            checkCudaError(cudaFree(cameraDistri_c));
-        
-        if(radarDistri_c != nullptr)
-            checkCudaError(cudaFree(radarDistri_c));
+
+        safeCudaFree(cameraDistri_c);
+        safeCudaFree(radarDistri_c);
+        safeCudaFree(cameraClassData);       
+        safeCudaFree(camClassInfo_cuda);
 
     }
     allClean = true;
@@ -176,6 +174,30 @@ py::array_t<uint16_t> GaussMap::findMax(){
     return py::array_t<uint16_t>(ret);
 }
 
+py::array_t<uint16_t> GaussMap::classes(){
+
+    camVal_t *tmp = (camVal_t*)malloc(sizeof(camVal_t) * mapInfo.cols * mapInfo.rows);
+    checkCudaError(cudaMemcpy(tmp, cameraClassData, sizeof(camVal_t) * mapInfo.cols * mapInfo.rows, cudaMemcpyDeviceToHost));
+    uint16_t *data = (uint16_t*)malloc(sizeof(uint16_t) * mapInfo.cols * mapInfo.rows);
+
+    for(size_t i = 0; i < mapInfo.rows; i++){
+        for(size_t j = 0; j < mapInfo.cols; j++){
+            data[i * mapInfo.cols + j] = tmp[i*mapInfo.cols + j].classVal;
+        }
+    }
+
+    py::buffer_info ret(
+        data,
+        sizeof(uint16_t),
+        py::format_descriptor<uint16_t>::format(),
+        2,
+        {mapInfo.rows, mapInfo.cols},
+        {sizeof(uint16_t) * mapInfo.cols, sizeof(uint16_t) * 1}
+    );
+
+    return py::array_t<uint16_t>(ret);
+}
+
 PYBIND11_MODULE(gaussMap, m){
     py::class_<GaussMap>(m,"GaussMap")
         .def(py::init<std::string>())
@@ -183,5 +205,6 @@ PYBIND11_MODULE(gaussMap, m){
         .def("addRadarData", &GaussMap::addRadarData)
         .def("addCameraData", &GaussMap::addCameraData)
         .def("asArray", &GaussMap::asArray, py::return_value_policy::take_ownership)
-        .def("findMax", &GaussMap::findMax, py::return_value_policy::take_ownership);
+        .def("findMax", &GaussMap::findMax, py::return_value_policy::take_ownership)
+        .def("classes", &GaussMap::classes, py::return_value_policy::take_ownership);
 }
