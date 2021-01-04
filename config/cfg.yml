@@ -68,7 +68,7 @@ NUSCENES:
 
 ## Gauss Map ###################################################################
 GaussMap:
-  MapWidth: 80          ## (int) Width of the heat map in meters
+  MapWidth: 100          ## (int) Width of the heat map in meters
   MapHeight: 100        ## (int) Height of the heat map in meters
   MapResolution: 5      ## (int) Number of cells per meter along each linear axis.
                         ## - Number of cells per square meter = MapResolution^2

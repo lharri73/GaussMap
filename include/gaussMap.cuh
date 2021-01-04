@@ -40,10 +40,5 @@ __global__ void radarPointKernel(mapType_t* gaussMap, RadarData_t *radarData,
                                 array_info* radarInfo, float* distributionInfo);
 
 __global__
-void calcDerivativeKernel(float* f, array_info* fInfo,
-                    float *fprime, array_info *fPrimeInfo);
-
-__global__
-void calcMaxKernel(uint8_t *isMax, float* arrayPrime, 
-                   array_info *primeInfo, float* arrayPrimePrime, 
-                   array_info *primePrimeInfo);
+void calcMaxKernel(uint8_t *isMax, float* array, 
+                   array_info *mapInfo);

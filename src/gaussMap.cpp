@@ -112,40 +112,6 @@ py::array_t<mapType_t> GaussMap::asArray(){
     return py::array_t<mapType_t>(a);
 }
 
-// calculate the first and second derivative of the heatmap and
-// return as a tuple (first, second) in a numpy array
-std::vector<py::array_t<float> > GaussMap::derivative(){
-    calcDerivative();
-    std::vector<py::array_t<float> > ret;
-    float* firstDeriv = new float[primeInfo.cols * primeInfo.rows];
-
-    checkCudaError(cudaMemcpy(firstDeriv, arrayPrime, primeInfo.cols * primeInfo.rows * primeInfo.elementSize, cudaMemcpyDeviceToHost));
-
-    py::buffer_info a(
-        firstDeriv,
-        sizeof(float),
-        py::format_descriptor<float>::format(),
-        2,
-        {primeInfo.rows, primeInfo.cols},
-        {sizeof(float) * primeInfo.cols, sizeof(float) * 1});
-    
-    ret.push_back(py::array_t<float>(a));
-
-    float* secondDeriv = new float[primePrimeInfo.cols * primePrimeInfo.rows];
-    checkCudaError(cudaMemcpy(secondDeriv, arrayPrimePrime, primePrimeInfo.cols * primePrimeInfo.rows * primeInfo.elementSize, cudaMemcpyDeviceToHost));
-    
-    py::buffer_info b(
-        secondDeriv,
-        sizeof(float),
-        py::format_descriptor<float>::format(),
-        2,
-        {primePrimeInfo.rows, primePrimeInfo.cols},
-        {sizeof(float) * primePrimeInfo.cols, sizeof(float) * 1});
-    ret.push_back(py::array_t<float>(b));
-
-    return ret;
-}
-
 // return the indices of the local maxima of the gaussMap
 // Nx2 [[row,col],...]
 py::array_t<uint16_t> GaussMap::findMax(){
@@ -173,6 +139,5 @@ PYBIND11_MODULE(gaussMap, m){
         .def("cleanup", &GaussMap::cleanup)
         .def("addRadarData", &GaussMap::addRadarData)
         .def("asArray", &GaussMap::asArray, py::return_value_policy::take_ownership)
-        .def("derivative", &GaussMap::derivative, py::return_value_policy::take_ownership)
         .def("findMax", &GaussMap::findMax, py::return_value_policy::take_ownership);
 }
