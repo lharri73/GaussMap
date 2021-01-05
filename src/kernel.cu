@@ -124,13 +124,25 @@ void GaussMap::calcRadarMap(){
 
 __global__ 
 void camPointKernel(mapType_t* gaussMap, 
-                    RadarData_t *camData, 
+                    float *camData, 
                     array_info *mapInfo, 
                     array_rel* mapRel, 
                     array_info* camInfo,
                     float* distributionInfo,
                     camVal_t *camClassVals,
                     array_info* camClassInfo){
+    /*
+    For every camera point, go through each cell in the map and determine the PDF
+    value iff the cell is within the cutoff radius. If it is, add the value of 
+    the PDF to the gaussMap. This function also records the point's PDF value and
+    class in the camClassVals array. This includes the pdf and the class with the
+    pdf as the most significant 32 bits of the 64 bit element size array. We use 
+    a union to get this value as an unsigned long long int for an atomicMax that
+    will store the maximum of either the value in the array or the value passed
+    as input (what is calculated for this particular camera point). This allows us
+    to keep a map of classes based on camera points, keeping only the class data 
+    originating from the closest camera point if overlap occurs. 
+    */
                           
     for(size_t row = 0; row < mapInfo->rows; row++){
         for(size_t col = 0; col < mapInfo->cols; col++){
@@ -143,7 +155,6 @@ void camPointKernel(mapType_t* gaussMap,
                 continue;
 
             float pdfVal = calcPdf(distributionInfo[0], distributionInfo[1], diff.radius);
-            // printf("pdf: %f\n", pdfVal);
             atomicAdd(&gaussMap[array_index(row,col,mapInfo)], pdfVal);
 
             union {

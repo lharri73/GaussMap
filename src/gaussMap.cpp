@@ -40,40 +40,28 @@ GaussMap::GaussMap(const std::string params){
 
     radarDistri_c = nullptr;
     cameraDistri_c = nullptr;
-
-    allClean = false;
 }
 
 GaussMap::~GaussMap(){
-    if(!allClean)
-        cleanup();
-}
+    safeCudaFree(array);
+    safeCudaFree(mapInfo_cuda);
+    safeCudaFree(mapRel_cuda);
 
-void GaussMap::cleanup(){
-    // performs the cleanup steps. Frees memory
-    if(!allClean){
-        safeCudaFree(array);
-        safeCudaFree(mapInfo_cuda);
-        safeCudaFree(mapRel_cuda);
-
-        if(radarData != nullptr){
-            checkCudaError(cudaFree(radarData));
-            safeCudaFree(radarInfo_cuda);
-        }
-        if(cameraData != nullptr){
-            checkCudaError(cudaFree(cameraData));
-            safeCudaFree(cameraInfo_cuda);
-        }
-        free(radarDistri);
-        free(cameraDistri);
-
-        safeCudaFree(cameraDistri_c);
-        safeCudaFree(radarDistri_c);
-        safeCudaFree(cameraClassData);       
-        safeCudaFree(camClassInfo_cuda);
-
+    if(radarData != nullptr){
+        checkCudaError(cudaFree(radarData));
+        safeCudaFree(radarInfo_cuda);
     }
-    allClean = true;
+    if(cameraData != nullptr){
+        checkCudaError(cudaFree(cameraData));
+        safeCudaFree(cameraInfo_cuda);
+    }
+    free(radarDistri);
+    free(cameraDistri);
+
+    safeCudaFree(cameraDistri_c);
+    safeCudaFree(radarDistri_c);
+    safeCudaFree(cameraClassData);       
+    safeCudaFree(camClassInfo_cuda);
 }
 
 // this template py:array_t forces the numpy array to be passed without any strides
@@ -201,7 +189,6 @@ py::array_t<uint16_t> GaussMap::classes(){
 PYBIND11_MODULE(gaussMap, m){
     py::class_<GaussMap>(m,"GaussMap")
         .def(py::init<std::string>())
-        .def("cleanup", &GaussMap::cleanup)
         .def("addRadarData", &GaussMap::addRadarData)
         .def("addCameraData", &GaussMap::addCameraData)
         .def("asArray", &GaussMap::asArray, py::return_value_policy::take_ownership)
