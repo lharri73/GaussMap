@@ -13,6 +13,12 @@ void checkCudaError(cudaError_t error){
 }
 
 void safeCudaFree(void *ptr){
-    if(ptr != nullptr)
-        checkCudaError(cudaFree(ptr));
+    if(ptr != nullptr){
+        cudaError_t error = cudaFree(ptr);
+        if(error != cudaSuccess){
+            std::stringstream ss;
+            ss << "gaussMap:: Internal error during cudaFree\n";
+            ss << "\tCUDA: " << error << '\n';
+        }
+    }
 }

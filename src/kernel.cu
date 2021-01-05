@@ -8,7 +8,7 @@
 #include <math_constants.h>     // CUDART_PI_F
 #include "gaussMap.cuh"
 
-__device__
+__device__ __forceinline__
 size_t array_index(size_t row, size_t col, array_info *info){
     // helper function to find the array index
     return (row * info->cols) + col;
@@ -21,8 +21,8 @@ Position indexDiff(size_t row, size_t col, RadarData_t *radarData, size_t radarP
     // radarPointIdx
     Position pos = index_to_position(row, col, mapInfo, mapRel);
     
-    float rPosx = radarData[array_index(threadIdx.x, 0, radarInfo)];
-    float rPosy = radarData[array_index(threadIdx.x, 1, radarInfo)];
+    float rPosx = radarData[array_index(radarPointIdx, 0, radarInfo)];
+    float rPosy = radarData[array_index(radarPointIdx, 1, radarInfo)];
     // printf("rpos %d x: %f, y: %f\n", threadIdx.x, rPosx, rPosy);
 
     Position difference(
@@ -47,7 +47,7 @@ Position index_to_position(size_t row, size_t col, array_info *info, array_rel *
     return ret;
 }
 
-__device__
+__device__ __forceinline__
 float calcPdf(float stdDev, float mean, float radius){
     // calculate the pdf of the given radar point based on the radius
     float variance = pow(stdDev, 2);
@@ -63,22 +63,20 @@ void radarPointKernel(mapType_t* gaussMap,
                       array_info *mapInfo, 
                       array_rel* mapRel, 
                       array_info* radarInfo,
-                      float* distributionInfo){
+                      distInfo_t* distributionInfo){
                           
-    for(size_t row = 0; row < mapInfo->rows; row++){
-        for(size_t col = 0; col < mapInfo->cols; col++){
-            // find where the cell is relative to the radar point
-            Position diff = indexDiff(row, col, 
-                                      radarData, threadIdx.x, 
-                                      radarInfo, mapInfo, mapRel);
-            // don't calculate the pdf of this cell if it's too far away
-            if(diff.radius > distributionInfo[2])
-                continue;
+    for(size_t col = 0; col < mapInfo->cols; col++){
+        // find where the cell is relative to the radar point
+        Position diff = indexDiff(blockIdx.x, col, 
+                                    radarData, threadIdx.x, 
+                                    radarInfo, mapInfo, mapRel);
+        // don't calculate the pdf of this cell if it's too far away
+        if(diff.radius > distributionInfo->distCutoff)
+            continue;
 
-            float pdfVal = calcPdf(distributionInfo[0], distributionInfo[1], diff.radius);
-            // printf("pdf: %f\n", pdfVal);
-            atomicAdd(&gaussMap[array_index(row,col,mapInfo)], pdfVal);
-        }
+        float pdfVal = calcPdf(distributionInfo->stdDev, distributionInfo->mean, diff.radius);
+        // printf("pdf: %f\n", pdfVal);
+        atomicAdd(&gaussMap[array_index(blockIdx.x,col,mapInfo)], pdfVal);
     }
 }
 
@@ -86,19 +84,10 @@ void GaussMap::calcRadarMap(){
 
     // allocate this struct in shared memory so we don't have to copy
     // it to each kernel when it's needed
-
-    checkCudaError(cudaMalloc(&mapInfo_cuda, sizeof(struct Array_Info)));
-    checkCudaError(cudaMalloc(&radarInfo_cuda, sizeof(struct Array_Info)));
-    checkCudaError(cudaMalloc(&mapRel_cuda, sizeof(struct Array_Relationship)));
-    checkCudaError(cudaMalloc(&radarDistri_c, 3*sizeof(float)));
-    
-    checkCudaError(cudaMemcpy(mapInfo_cuda, &mapInfo, sizeof(struct Array_Info), cudaMemcpyHostToDevice));
     checkCudaError(cudaMemcpy(radarInfo_cuda, &radarInfo, sizeof(struct Array_Info), cudaMemcpyHostToDevice));
-    checkCudaError(cudaMemcpy(mapRel_cuda, &mapRel, sizeof(struct Array_Relationship), cudaMemcpyHostToDevice));
-    checkCudaError(cudaMemcpy(radarDistri_c, radarDistri, 3*sizeof(float), cudaMemcpyHostToDevice));
 
-    // dispatch the kernel with `numPoints` threads
-    radarPointKernel<<<1,radarInfo.rows>>>(
+    // dispatch the kernel with `numPoints x mapInfo.rows` threads
+    radarPointKernel<<<mapInfo.rows,radarInfo.rows>>>(
         array,
         radarData,
         mapInfo_cuda,
@@ -106,7 +95,7 @@ void GaussMap::calcRadarMap(){
         radarInfo_cuda,
         radarDistri_c
     );
-
+    
     // wait untill all threads sync
     cudaDeviceSynchronize();
     cudaError_t error = cudaGetLastError();
@@ -128,7 +117,7 @@ void camPointKernel(mapType_t* gaussMap,
                     array_info *mapInfo, 
                     array_rel* mapRel, 
                     array_info* camInfo,
-                    float* distributionInfo,
+                    distInfo_t* distributionInfo,
                     camVal_t *camClassVals,
                     array_info* camClassInfo){
     /*
@@ -143,52 +132,42 @@ void camPointKernel(mapType_t* gaussMap,
     to keep a map of classes based on camera points, keeping only the class data 
     originating from the closest camera point if overlap occurs. 
     */
-                          
-    for(size_t row = 0; row < mapInfo->rows; row++){
-        for(size_t col = 0; col < mapInfo->cols; col++){
-            // find where the cell is relative to the radar point
-            Position diff = indexDiff(row, col, 
-                                      camData, threadIdx.x, 
-                                      camInfo, mapInfo, mapRel);
-            // don't calculate the pdf of this cell if it's too far away
-            if(diff.radius > distributionInfo[2])
-                continue;
 
-            float pdfVal = calcPdf(distributionInfo[0], distributionInfo[1], diff.radius);
-            atomicAdd(&gaussMap[array_index(row,col,mapInfo)], pdfVal);
+    // class vals in the camera list are 1 indexed (zero is background)
+    // the config list is provided as a zero-indexed list, so decrement
+    uint8_t classVal = __half2ushort_rn(camData[array_index(threadIdx.x, 2, camInfo)] - 1);
+    
+    for(size_t col = 0; col < mapInfo->cols; col++){
+        // find where the cell is relative to the radar point
+        Position diff = indexDiff(blockIdx.x, col, 
+                                    camData, threadIdx.x, 
+                                    camInfo, mapInfo, mapRel);
+        // don't calculate the pdf of this cell if it's too far away
+        if(diff.radius > distributionInfo[classVal].distCutoff)
+            continue;
 
-            union {
-                camVal_t camVal;
-                unsigned long long int ulong;
-            } cat;
+        float pdfVal = calcPdf(distributionInfo[classVal].stdDev, distributionInfo[classVal].mean, diff.radius);
+        atomicAdd(&gaussMap[array_index(blockIdx.x,col,mapInfo)], pdfVal);
 
-            cat.ulong = 0; // initialize to 0
-            cat.camVal.probability = pdfVal;
-            cat.camVal.classVal = (uint32_t)camData[array_index(threadIdx.x, 2, camInfo)];
-            
-            atomicMax((unsigned long long*)&camClassVals[array_index(row,col,camClassInfo)], cat.ulong);
-        }
+        union {
+            camVal_t camVal;
+            unsigned long long int ulong;
+        } cat;
+
+        cat.ulong = 0; // initialize to 0
+        cat.camVal.probability = pdfVal;
+        cat.camVal.classVal = (uint32_t)camData[array_index(threadIdx.x, 2, camInfo)];
+        
+        atomicMax((unsigned long long*)&camClassVals[array_index(blockIdx.x,col,camClassInfo)], cat.ulong);
     }
 }
 
 void GaussMap::calcCameraMap(){
-    camClassInfo.rows = mapInfo.rows;
-    camClassInfo.cols = mapInfo.cols;
-    camClassInfo.elementSize = sizeof(struct CamVal);
-
-    checkCudaError(cudaMalloc(&cameraInfo_cuda, sizeof(struct Array_Info)));
-    checkCudaError(cudaMalloc(&camClassInfo_cuda, sizeof(struct Array_Info)));
-    checkCudaError(cudaMalloc(&cameraDistri_c, 3*sizeof(float)));
-
     checkCudaError(cudaMemcpy(cameraInfo_cuda, &cameraInfo, sizeof(struct Array_Info), cudaMemcpyHostToDevice));
-    checkCudaError(cudaMemcpy(camClassInfo_cuda, &camClassInfo, sizeof(struct Array_Info), cudaMemcpyHostToDevice));
-    checkCudaError(cudaMemcpy(cameraDistri_c, cameraDistri, 3*sizeof(float), cudaMemcpyHostToDevice));
 
     // allocate the camera class array
-    checkCudaError(cudaMalloc(&cameraClassData, camClassInfo.elementSize * camClassInfo.rows * camClassInfo.cols));
-    checkCudaError(cudaMemset(cameraClassData, 0, camClassInfo.elementSize * camClassInfo.rows * camClassInfo.cols));
-
-    camPointKernel<<<1,cameraInfo.rows>>>(
+    
+    camPointKernel<<<mapInfo.rows,cameraInfo.rows>>>(
         array,
         cameraData,
         mapInfo_cuda,
@@ -225,8 +204,8 @@ void calcMaxKernel(maxVal_t *isMax,
     float curVal = array[array_index(row,col, mapInfo)];
     if(curVal == 0) return; // not a max if it's zero
 
-    for(int i = -1; i <= 1; i++){
-        for(int j = -1; j <= 1; j++){
+    for(int i = -3; i <= 3; i++){
+        for(int j = -3; j <= 3; j++){
             if(array[array_index(row+i, col+j, mapInfo)] > curVal)
                 return;
         }

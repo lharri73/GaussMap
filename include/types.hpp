@@ -26,3 +26,9 @@ typedef struct MaxVal{
     uint8_t isMax;
     uint8_t classVal;
 } maxVal_t;
+
+typedef struct DistributionInfo{
+    float mean;
+    float stdDev;
+    float distCutoff;
+} distInfo_t;

@@ -27,6 +27,8 @@ class GaussMap{
         py::array_t<mapType_t> asArray();
         py::array_t<uint16_t> findMax();
         py::array_t<uint16_t> classes();
+        
+        void reset();
 
     private:
         mapType_t* array;
@@ -41,11 +43,11 @@ class GaussMap{
         array_info cameraInfo, *cameraInfo_cuda;
         array_info camClassInfo, *camClassInfo_cuda;
 
-        float* cameraDistri;
-        float* cameraDistri_c;
+        std::vector<distInfo_t> cameraDistri;
+        distInfo_t* cameraDistri_c;
 
-        float* radarDistri;         // normal distrubution info. 
-        float* radarDistri_c;       // 0: stddev, 1: mean, 2: distance cutoff
+        distInfo_t* radarDistri;         // normal distrubution info. 
+        distInfo_t* radarDistri_c;       // 0: stddev, 1: mean, 2: distance cutoff
 
         void calcRadarMap();        // function used to setup the kernel. 
                                     // called from addRadarData()

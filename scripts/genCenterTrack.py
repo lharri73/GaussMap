@@ -20,8 +20,7 @@ class_name = {
       'motorcycle': 7.0, 
       'bicycle': 8.0,
       'traffic_cone': 9.0, 
-      'barrier': 10.0, 
-      'radar': 11.0
+      'barrier': 10.0
 }
 
 SPLIT_TO_VER={'mini-val': 'v1.0-mini', 'val': 'v1.0-trainval', 'train': 'v1.0-trainval', 'test': 'v1.0-test', 'mini-train': 'v1.0-mini'}

@@ -1,4 +1,5 @@
 #include <cuda_runtime.h>
+#include <cuda_fp16.h>
 #include "gaussMap.hpp"
 #include "utils.hpp"
 
@@ -36,11 +37,11 @@ __device__ float calcPdf(float stdDev, float mean, float radius);
 // to the value already in the heat map.
 __global__ void radarPointKernel(mapType_t* gaussMap, RadarData_t *radarData, 
                                 array_info* mapInfo, array_rel* mapRel, 
-                                array_info* radarInfo, float* distributionInfo);
+                                array_info* radarInfo, distInfo_t* distributionInfo);
 
 __global__ void camPointKernel(mapType_t* gaussMap, float *camData, 
                                 array_info* mapInfo, array_rel* mapRel, 
-                                array_info* camInfo, float* distributionInfo,
+                                array_info* camInfo, distInfo_t* distributionInfo,
                                 camVal_t* camClasVals, array_info* camClasInfo);
 __global__
 void calcMaxKernel(uint8_t *isMax, float* array, 

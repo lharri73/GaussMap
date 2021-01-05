@@ -4,11 +4,13 @@ from gaussMap import GaussMap
 import numpy as np
 import matplotlib.pyplot as plt
 import open3d as o3d
+import time
 
 class GaussMapWrapper:
     def __init__(self, version, split, dataset_dir, centerTrackRes):
         self.nusc = NuscenesDataset(dataset_dir, version, split, 'config/nuscenes.yml')
         self.centerTrack = centerTrackRes
+        self.map = GaussMap('config/map.yml')
 
     def run(self):
         for frame in tqdm(self.nusc):
@@ -24,27 +26,26 @@ class GaussMapWrapper:
             #TODO: get camera points
 
             ## create the heatmap
-            self.createMap()
-
+            start = time.time()
             self.map.addRadarData(radarPoints)
-            self.showImage(cameraPoints)         
-            input()
-            self.showFrame(frame)
-            # print("done")
+            second = time.time()
+            self.map.addCameraData(cameraPoints)
+            third = time.time()
+            self.map.findMax()
+            fourth = time.time()
+            # self.showImage(cameraPoints)         
+            self.map.reset()
+            last = time.time()
+            tqdm.write("radar: {:.5f}, camera: {:.5f}, max: {:.5f}, reset: {:.5f}, total: {:.5f}".format(second-start, third-second, fourth-third, last-fourth, last-start))
             # input()
+            # self.showFrame(frame)
 
-    def createMap(self):
-        """
-        initializes the heatmap with config parameters from config file
-        See include/gaussMap.hpp for full construction signature
-        """
-        self.map = GaussMap('config/map.yml')
 
     def showImage(self, camPoints):
         """
         Creates an image of the heatmap and displays it as greyscale
         """
-        f, axarr = plt.subplots(2,3)
+        f, axarr = plt.subplots(2,2)
         array = self.map.asArray()
         scaled = np.uint8(np.interp(array, (0, array.max()), (0,255)))
         axarr[0][0].imshow(scaled, cmap="gray")
@@ -56,8 +57,6 @@ class GaussMapWrapper:
                
         maxima = self.map.findMax()
         # np.savetxt("maxima.txt", maxima)
-        axarr[0][2].imshow(scaled, cmap='gray')
-        axarr[0][2].plot(maxima[:,1], maxima[:,0], ',', color='r')
 
         classes = self.map.classes()
         # cls_scaled = np.uint8(np.interp(classes, (0, array.max()), (0,255)))
@@ -88,7 +87,7 @@ class GaussMapWrapper:
         cpcd.points = o3d.utility.Vector3dVector(ctArray)
         cpcd.paint_uniform_color(np.array([0,1,0])) ## Red
         
-        # vis.add_geometry(pcd)
+        vis.add_geometry(pcd)
         vis.add_geometry(rpcd)
         vis.add_geometry(cpcd)
         ctr = vis.get_view_control()

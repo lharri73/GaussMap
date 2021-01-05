@@ -13,33 +13,48 @@ GaussMap::GaussMap(const std::string params){
     mapInfo.cols = mapRel.width * mapRel.res;
     mapInfo.rows = mapRel.height * mapRel.res;
     mapInfo.elementSize = sizeof(mapType_t);
-    // allocate memory for the array
+
+    camClassInfo.rows = mapInfo.rows;
+    camClassInfo.cols = mapInfo.cols;
+    camClassInfo.elementSize = sizeof(struct CamVal);
+
     checkCudaError(cudaMalloc(&array, mapInfo.cols * mapInfo.rows * mapInfo.elementSize));
-    checkCudaError(cudaMemset(array, 0, mapInfo.cols * mapInfo.rows * mapInfo.elementSize));
 
-    radarDistri = (float*)calloc(3, sizeof(float));
-    radarDistri[0] = config["Radar"]["StdDev"].as<float>();
-    radarDistri[1] = config["Radar"]["Mean"].as<float>();
-    radarDistri[2] = config["Radar"]["RadCutoff"].as<float>();
+    radarDistri = (distInfo_t*)malloc(sizeof(struct DistributionInfo));
+    radarDistri->stdDev = config["Radar"]["StdDev"].as<float>();
+    radarDistri->mean = config["Radar"]["Mean"].as<float>();
+    radarDistri->distCutoff = config["Radar"]["RadCutoff"].as<float>();
 
-    cameraDistri = (float*)calloc(3, sizeof(float));
-    cameraDistri[0] = config["Camera"]["StdDev"].as<float>();
-    cameraDistri[1] = config["Camera"]["Mean"].as<float>();
-    cameraDistri[2] = config["Camera"]["RadCutoff"].as<float>();
+    distInfo_t tmp;
+    for(size_t i =0; i < config["Camera"].size(); i++){
+        tmp.stdDev = config["Camera"][i]["StdDev"].as<float>();
+        tmp.mean = config["Camera"][i]["Mean"].as<float>();
+        tmp.distCutoff = config["Camera"][i]["RadCutoff"].as<float>();
+        cameraDistri.push_back(tmp);
+    }
+    // allocate this struct in shared memory so we don't have to copy
+    // it to each kernel when it's needed
+    checkCudaError(cudaMalloc(&mapInfo_cuda, sizeof(struct Array_Info)));
+    checkCudaError(cudaMalloc(&radarInfo_cuda, sizeof(struct Array_Info)));
+    checkCudaError(cudaMalloc(&mapRel_cuda, sizeof(struct Array_Relationship)));
+    checkCudaError(cudaMalloc(&radarDistri_c, sizeof(distInfo_t)));
+    checkCudaError(cudaMalloc(&cameraDistri_c, cameraDistri.size() * sizeof(distInfo_t)));
+
+    checkCudaError(cudaMalloc(&cameraInfo_cuda, sizeof(struct Array_Info)));
+    checkCudaError(cudaMalloc(&camClassInfo_cuda, sizeof(struct Array_Info)));
+    checkCudaError(cudaMalloc(&cameraClassData, camClassInfo.elementSize * camClassInfo.rows * camClassInfo.cols));
+    
+    checkCudaError(cudaMemcpy(mapInfo_cuda, &mapInfo, sizeof(struct Array_Info), cudaMemcpyHostToDevice));
+    checkCudaError(cudaMemcpy(mapRel_cuda, &mapRel, sizeof(struct Array_Relationship), cudaMemcpyHostToDevice));
+    checkCudaError(cudaMemcpy(radarDistri_c, radarDistri, sizeof(distInfo_t), cudaMemcpyHostToDevice));
+    checkCudaError(cudaMemcpy(cameraDistri_c, cameraDistri.data(), cameraDistri.size() * sizeof(distInfo_t), cudaMemcpyHostToDevice));
+    checkCudaError(cudaMemcpy(camClassInfo_cuda, &camClassInfo, sizeof(struct Array_Info), cudaMemcpyHostToDevice));
 
     // this is all done so we can check if it has been allocated later
     radarData = nullptr;
     cameraData = nullptr;
-    cameraClassData = nullptr;
 
-    mapInfo_cuda = nullptr;
-    mapRel_cuda = nullptr;
-    radarInfo_cuda = nullptr;
-    cameraInfo_cuda = nullptr;
-    camClassInfo_cuda = nullptr;
-
-    radarDistri_c = nullptr;
-    cameraDistri_c = nullptr;
+    reset();
 }
 
 GaussMap::~GaussMap(){
@@ -55,13 +70,24 @@ GaussMap::~GaussMap(){
         checkCudaError(cudaFree(cameraData));
         safeCudaFree(cameraInfo_cuda);
     }
+
     free(radarDistri);
-    free(cameraDistri);
 
     safeCudaFree(cameraDistri_c);
     safeCudaFree(radarDistri_c);
     safeCudaFree(cameraClassData);       
     safeCudaFree(camClassInfo_cuda);
+}
+
+void GaussMap::reset(){
+    checkCudaError(cudaMemset(array, 0, mapInfo.cols * mapInfo.rows * mapInfo.elementSize));
+    checkCudaError(cudaMemset(cameraClassData, 0, camClassInfo.elementSize * camClassInfo.rows * camClassInfo.cols));
+
+    safeCudaFree(radarData);
+    safeCudaFree(cameraData);
+
+    radarData = nullptr;
+    cameraData = nullptr;
 }
 
 // this template py:array_t forces the numpy array to be passed without any strides
@@ -77,7 +103,7 @@ void GaussMap::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::ar
         throw std::runtime_error("Invalid datatype passed with radar data. Should be type: float (float32).");
     }
 
-    radarPoints = buf1.shape[0];      // num points
+    radarPoints = buf1.shape[0];            // num points
     radarFeatures = buf1.shape[1];          // usually 18
     if(radarFeatures != 18){
         throw std::runtime_error("Got invalid shape of Radar Data. should be Nx18");
@@ -189,6 +215,7 @@ py::array_t<uint16_t> GaussMap::classes(){
 PYBIND11_MODULE(gaussMap, m){
     py::class_<GaussMap>(m,"GaussMap")
         .def(py::init<std::string>())
+        .def("reset", &GaussMap::reset)
         .def("addRadarData", &GaussMap::addRadarData)
         .def("addCameraData", &GaussMap::addCameraData)
         .def("asArray", &GaussMap::asArray, py::return_value_policy::take_ownership)
