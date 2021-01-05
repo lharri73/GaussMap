@@ -214,8 +214,9 @@ void GaussMap::calcCameraMap(){
 // maxima locating
 
 __global__
-void calcMaxKernel(uint8_t *isMax, float* array, 
-                   array_info *mapInfo){
+void calcMaxKernel(maxVal_t *isMax, 
+                  float* array, array_info *mapInfo,
+                  camVal_t *camClassData, array_info *classInfo){
     int row = threadIdx.x;
     int col = blockIdx.x;
     if(row == 0 || row == mapInfo->rows) return;
@@ -231,16 +232,19 @@ void calcMaxKernel(uint8_t *isMax, float* array,
         }
     }
 
-    isMax[array_index(row,col,mapInfo)] = 1;
-
+    camVal_t camVal = camClassData[array_index(row,col,classInfo)];
+    maxVal_t toInsert;
+    toInsert.isMax = 1;
+    toInsert.classVal = (uint8_t) camVal.classVal;
+    isMax[array_index(row,col,mapInfo)] = toInsert;
 }
 
 std::vector<uint16_t> GaussMap::calcMax(){
-    uint8_t *isMax_cuda;
-    checkCudaError(cudaMalloc(&isMax_cuda, sizeof(uint8_t) * mapInfo.rows * mapInfo.cols));
+    maxVal_t *isMax_cuda;
+    checkCudaError(cudaMalloc(&isMax_cuda, sizeof(maxVal_t) * mapInfo.rows * mapInfo.cols));
 
     // initialize isMax to 0
-    checkCudaError(cudaMemset(isMax_cuda, 0, sizeof(uint8_t) * mapInfo.rows * mapInfo.cols));
+    checkCudaError(cudaMemset(isMax_cuda, 0, sizeof(maxVal_t) * mapInfo.rows * mapInfo.cols));
 
     dim3 maxGridSize(mapInfo.rows, 1, 1);
     dim3 maxBlockSize(mapInfo.cols, 1, 1);
@@ -248,7 +252,9 @@ std::vector<uint16_t> GaussMap::calcMax(){
     calcMaxKernel<<<maxGridSize, maxBlockSize>>>(
         isMax_cuda,
         array,
-        mapInfo_cuda
+        mapInfo_cuda,
+        cameraClassData,
+        camClassInfo_cuda
     );
 
     cudaDeviceSynchronize();
@@ -261,18 +267,21 @@ std::vector<uint16_t> GaussMap::calcMax(){
     }
 
     // copy back to host so we can iterate over it
-    uint8_t *isMax = (uint8_t*)calloc(sizeof(uint8_t), mapInfo.rows * mapInfo.cols);
-    checkCudaError(cudaMemcpy(isMax, isMax_cuda, sizeof(uint8_t) * mapInfo.rows * mapInfo.cols, cudaMemcpyDeviceToHost));
+    maxVal_t *isMax = (maxVal_t*)calloc(sizeof(maxVal_t), mapInfo.rows * mapInfo.cols);
+    checkCudaError(cudaMemcpy(isMax, isMax_cuda, sizeof(maxVal_t) * mapInfo.rows * mapInfo.cols, cudaMemcpyDeviceToHost));
     
     // now we don't need the device memory since it's on the host
     checkCudaError(cudaFree(isMax_cuda));
 
-    std::vector<uint16_t> ret;   // stored as (row,col,row,col,row,col,...)
+    maxVal_t tmp;
+    std::vector<uint16_t> ret;   // stored as (row,col,class,row,col,class,row,col,class,...)
     for(uint16_t row = 0; row < mapInfo.rows; row++){
         for(uint16_t col = 0; col < mapInfo.cols; col++){
-            if(isMax[(size_t)(row * mapInfo.cols + col)] == 1){
+            tmp = isMax[(size_t)(row * mapInfo.cols + col)];
+            if(tmp.isMax == 1){
                 ret.push_back(row);
                 ret.push_back(col);
+                ret.push_back((uint16_t)tmp.classVal);
             }
         }
     }

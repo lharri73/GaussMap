@@ -149,15 +149,15 @@ py::array_t<uint16_t> GaussMap::findMax(){
     uint16_t *vecData = (uint16_t*)malloc(values.size() * sizeof(uint16_t));
     memcpy(vecData, values.data(), values.size() * sizeof(uint16_t));
 
-    int rows = values.size() /2;
+    int rows = values.size() /3;
 
     py::buffer_info ret(
         vecData,
         sizeof(uint16_t),
         py::format_descriptor<uint16_t>::format(),
         2,
-        {rows,2},
-        {sizeof(uint16_t) * 2, sizeof(uint16_t) * 1}
+        {rows,3},
+        {sizeof(uint16_t) * 3, sizeof(uint16_t) * 1}
     );
     return py::array_t<uint16_t>(ret);
 }

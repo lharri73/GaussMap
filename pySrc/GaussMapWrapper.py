@@ -44,24 +44,27 @@ class GaussMapWrapper:
         """
         Creates an image of the heatmap and displays it as greyscale
         """
-        f, axarr = plt.subplots(1,4)
+        f, axarr = plt.subplots(2,3)
         array = self.map.asArray()
         scaled = np.uint8(np.interp(array, (0, array.max()), (0,255)))
-        axarr[0].imshow(scaled, cmap="gray")
+        axarr[0][0].imshow(scaled, cmap="gray")
 
         self.map.addCameraData(camPoints)
         array = self.map.asArray()
         scaled = np.uint8(np.interp(array, (0, array.max()), (0,255)))
-        axarr[1].imshow(scaled, cmap="gray")
+        axarr[0][1].imshow(scaled, cmap="gray")
                
         maxima = self.map.findMax()
         # np.savetxt("maxima.txt", maxima)
-        axarr[2].imshow(scaled, cmap='gray')
-        axarr[2].plot(maxima[:,1], maxima[:,0], ',', color='r')
+        axarr[0][2].imshow(scaled, cmap='gray')
+        axarr[0][2].plot(maxima[:,1], maxima[:,0], ',', color='r')
 
         classes = self.map.classes()
         # cls_scaled = np.uint8(np.interp(classes, (0, array.max()), (0,255)))
-        axarr[3].imshow(classes, cmap='Paired')
+        axarr[1][0].imshow(classes, cmap='Paired')
+
+        axarr[1][1].imshow(scaled, cmap='gray')
+        axarr[1][1].scatter(maxima[:,1], maxima[:,0], c=maxima[:,2], cmap='Paired', marker='o', s=(72./f.dpi)**2)
 
         plt.show(block=False)
 

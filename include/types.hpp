@@ -21,3 +21,8 @@ typedef struct CamVal{
     uint32_t classVal;      // uint16 so it's aligned to dopuble word (32 bits)
     float probability;      // value of pdf
 } camVal_t;
+
+typedef struct MaxVal{
+    uint8_t isMax;
+    uint8_t classVal;
+} maxVal_t;
