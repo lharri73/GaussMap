@@ -7,7 +7,7 @@ import open3d as o3d
 
 class GaussMapWrapper:
     def __init__(self, version, split, dataset_dir, centerTrackRes):
-        self.nusc = NuscenesDataset(dataset_dir, version, split, 'config/cfg.yml')
+        self.nusc = NuscenesDataset(dataset_dir, version, split, 'config/nuscenes.yml')
         self.centerTrack = centerTrackRes
 
     def run(self):
