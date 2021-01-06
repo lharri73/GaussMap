@@ -8,6 +8,7 @@ from tqdm import tqdm
 from spinners import Spinners
 from halo import Halo
 
+
 import pickle
 
 class_name = {

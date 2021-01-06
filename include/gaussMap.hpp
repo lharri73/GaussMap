@@ -25,7 +25,7 @@ class GaussMap{
 
         // returns the heatmap as a 2 dimensional numpy array
         py::array_t<mapType_t> asArray();
-        py::array_t<uint16_t> findMax();
+        py::array_t<float> findMax();
         py::array_t<uint16_t> classes();
         
         void reset();
@@ -55,5 +55,5 @@ class GaussMap{
         void calcCameraMap();       // function used to setup the kernel. 
                                     // called from addCameraData()
 
-        std::vector<uint16_t> calcMax();
+        std::vector<float> calcMax();
 };

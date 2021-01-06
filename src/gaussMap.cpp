@@ -169,23 +169,23 @@ py::array_t<mapType_t> GaussMap::asArray(){
 
 // return the indices of the local maxima of the gaussMap
 // Nx2 [[row,col],...]
-py::array_t<uint16_t> GaussMap::findMax(){
+py::array_t<float> GaussMap::findMax(){
 
-    std::vector<uint16_t> values = calcMax();
-    uint16_t *vecData = (uint16_t*)malloc(values.size() * sizeof(uint16_t));
-    memcpy(vecData, values.data(), values.size() * sizeof(uint16_t));
+    std::vector<float> values = calcMax();
+    float *vecData = (float*)malloc(values.size() * sizeof(float));
+    memcpy(vecData, values.data(), values.size() * sizeof(float));
 
-    int rows = values.size() /3;
+    int rows = values.size() /4;
 
     py::buffer_info ret(
         vecData,
-        sizeof(uint16_t),
-        py::format_descriptor<uint16_t>::format(),
+        sizeof(float),
+        py::format_descriptor<float>::format(),
         2,
-        {rows,3},
-        {sizeof(uint16_t) * 3, sizeof(uint16_t) * 1}
+        {rows,4},
+        {sizeof(float) * 4, sizeof(float) * 1}
     );
-    return py::array_t<uint16_t>(ret);
+    return py::array_t<float>(ret);
 }
 
 py::array_t<uint16_t> GaussMap::classes(){

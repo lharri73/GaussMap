@@ -34,28 +34,34 @@ NUSCENES:
 ## categories to include in database and their corresponding name mapping.
 ## Any category not in this dictionary is ignored.
     CATEGORIES: {
-      'vehicle.car':                          'car',
-      'vehicle.truck':                        'truck',
-      'vehicle.trailer':                      'trailer',
-      'human.pedestrian.adult':               'pedestrian',
-      'human.pedestrian.child':               'pedestrian',
-      'human.pedestrian.construction_worker': 'pedestrian',
-      'human.pedestrian.police_officer':      'pedestrian',
-      'vehicle.bus.bendy':                    'bus',
-      'vehicle.bus.rigid':                    'bus',
-      'vehicle.bicycle':                      'bicycle',
-      'vehicle.motorcycle':                   'motorcycle',
+       'movable_object.barrier': 'barrier',
+        'vehicle.bicycle': 'bicycle',
+        'vehicle.bus.bendy': 'bus',
+        'vehicle.bus.rigid': 'bus',
+        'vehicle.car': 'car',
+        'vehicle.construction': 'construction_vehicle',
+        'vehicle.motorcycle': 'motorcycle',
+        'human.pedestrian.adult': 'pedestrian',
+        'human.pedestrian.child': 'pedestrian',
+        'human.pedestrian.construction_worker': 'pedestrian',
+        'human.pedestrian.police_officer': 'pedestrian',
+        'movable_object.trafficcone': 'traffic_cone',
+        'vehicle.trailer': 'trailer',
+        'vehicle.truck': 'truck'
     }
 
 ## Category IDs
     CAT_ID: {
-      'car': 0, 
-      'truck': 1, 
-      'trailer': 2, 
-      'pedestrian': 3, 
-      'bus': 4,
-      'bicycle': 5,
-      'motorcycle': 6, 
+      'car': 1, 
+      'truck': 2, 
+      'bus': 3,
+      'trailer': 4, 
+      'construction_vehicle': 5, 
+      'pedestrian': 6, 
+      'motorcycle': 7, 
+      'bicycle': 8,
+      'traffic_cone': 9,
+      'barrier': 10
     }
 
 ## MISC ########################################################################

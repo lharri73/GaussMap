@@ -1,16 +1,36 @@
 from pynuscenes.nuscenes_dataset import NuscenesDataset
+from pynuscenes.utils.nuscenes_utils import vehicle_to_global
+from nuscenes.eval.detection.data_classes import DetectionBox
+from nuscenes.eval.common.data_classes import EvalBoxes
 from tqdm import tqdm
 from gaussMap import GaussMap
 import numpy as np
 import matplotlib.pyplot as plt
 import open3d as o3d
 import time
+from consts import AVG_HEIGHT, class_reverse
+import json
+
+from datetime import datetime
+import time
+import os
 
 class GaussMapWrapper:
-    def __init__(self, version, split, dataset_dir, centerTrackRes):
+    def __init__(self, version, split, dataset_dir, centerTrackRes, save_dir):
         self.nusc = NuscenesDataset(dataset_dir, version, split, 'config/nuscenes.yml')
+        self.save_dir = save_dir
+        self.now = datetime.now()
+        self.start = time.time()
+        self.meta = {
+            'version': version,
+            'split': split,
+            'date': self.now.strftime("%m/%d/%Y %H:%M:%S")
+        }
         self.centerTrack = centerTrackRes
         self.map = GaussMap('config/map.yml')
+        self.results = EvalBoxes()
+        self.class_reverse = class_reverse
+        self.class_reverse.update({0: 'barrier'})
 
     def run(self):
         for frame in tqdm(self.nusc):
@@ -23,22 +43,48 @@ class GaussMapWrapper:
 
             # np.savetxt("radar.txt", radarPoints[:,:2])
 
-            #TODO: get camera points
-
             ## create the heatmap
-            start = time.time()
             self.map.addRadarData(radarPoints)
-            second = time.time()
             self.map.addCameraData(cameraPoints)
-            third = time.time()
-            self.map.findMax()
-            fourth = time.time()
+            maxima = self.map.findMax()
+            scores = maxima[:,3]
+            scores = scores / np.max(scores)
             # self.showImage(cameraPoints)         
+
+            s_record = self.nusc.get('sample', frame['sample_token'])
+            sd_record = self.nusc.get('sample_data', s_record['data']['LIDAR_TOP'])
+            pose_rec = self.nusc.get('ego_pose', sd_record['ego_pose_token'])
+
+            boxes = []
+            for i in range(min(maxima.shape[0], 499)):
+                box = DetectionBox(sample_token=frame['sample_token'],
+                                   translation=[maxima[i,1], maxima[i,0], AVG_HEIGHT[maxima[i,2]]],
+                                   size=[1,1,1], 
+                                   rotation=[1,0,0,0], 
+                                   velocity=[0,0], 
+                                   detection_name=self.class_reverse[maxima[i,2]],
+                                   detection_score=float(scores[i]))
+                box = vehicle_to_global(box, pose_rec)
+                boxes.append(box)
+
+            self.results.add_boxes(frame['sample_token'], boxes)
             self.map.reset()
-            last = time.time()
-            tqdm.write("radar: {:.5f}, camera: {:.5f}, max: {:.5f}, reset: {:.5f}, total: {:.5f}".format(second-start, third-second, fourth-third, last-fourth, last-start))
-            # input()
+        
+        self.end = time.time()
             # self.showFrame(frame)
+            
+    def serialize(self):
+        resString = self.results.serialize()
+        self.meta.update({"timeElapsed": time.strftime("%H:%M:%S", time.gmtime(self.end-self.start)) })
+        out = {
+            "meta" : self.meta,
+            "results": resString
+        }
+        if not os.path.exists("results/{}".format(self.save_dir)):
+            os.makedirs("results/{}".format(self.save_dir))
+
+        with open("results/{}/{}.json".format(self.save_dir, self.now.strftime("%Y-%m-%d_%H-%M-%S")), "w") as f:
+            json.dump(out, f, indent=4)
 
 
     def showImage(self, camPoints):
