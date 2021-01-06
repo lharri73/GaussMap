@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import open3d as o3d
 import time
-from consts import AVG_HEIGHT, class_reverse
+from consts import class_reverse
 import json
 
 from datetime import datetime
@@ -58,7 +58,7 @@ class GaussMapWrapper:
             boxes = []
             for i in range(min(maxima.shape[0], 499)):
                 box = DetectionBox(sample_token=frame['sample_token'],
-                                   translation=[maxima[i,1], maxima[i,0], AVG_HEIGHT[maxima[i,2]]],
+                                   translation=[maxima[i,1], maxima[i,0], 1],
                                    size=[1,1,1], 
                                    rotation=[1,0,0,0], 
                                    velocity=[0,0], 

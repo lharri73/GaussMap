@@ -104,6 +104,7 @@ void GaussMap::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::ar
     }
 
     radarPoints = buf1.shape[0];            // num points
+    if(radarPoints == 0) return;            // do nothing if there are no points;
     radarFeatures = buf1.shape[1];          // usually 18
     if(radarFeatures != 18){
         throw std::runtime_error("Got invalid shape of Radar Data. should be Nx18");
@@ -133,7 +134,8 @@ void GaussMap::addCameraData(py::array_t<float, py::array::c_style | py::array::
         throw std::runtime_error("Invalid datatype passed with camera data. Should be type: float (float32).");
     }
 
-    numPoints = buf1.shape[0];      // num points
+    numPoints = buf1.shape[0];            // num points
+    if(numPoints == 0) return;            // do nothing if there are no points;
     numFeatures = buf1.shape[1];          // usually 3
     if(numFeatures != 3){
         throw std::runtime_error("Got invalid shape of camera Data. should be Nx3");
