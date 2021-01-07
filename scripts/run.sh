@@ -17,9 +17,10 @@ curTime=`date +"results_%Y-%m-%d_%H-%M-%S"`
 
 python -m nuscenes.eval.detection.evaluate $latest --output_dir results/$4/$curTime --eval_set $2 --dataroot $3 --version $1
 
-if [ ! -f "results/$4/cfg.yml" ]; then
-    cp config/cfg.yml results/$4/cfg.yml
+if [ ! -f "results/$4/map.yml" ]; then
+    cp config/map.yml results/$4/map.yml
 else
-    echo "Skipping copy of config file...Already exists"
-    echo -e "\tHas it changed?"
+    if [[ ! `diff -q config/map.yml results/$4/map.yml` == "" ]]; then
+        echo "CONFIG FILE EXISTS AND ARE DIFFERENT!" 1>&2;
+    fi
 fi

@@ -264,11 +264,11 @@ std::vector<float> GaussMap::calcMax(){
     for(size_t row = 0; row < mapInfo.rows; row++){
         for(size_t col = 0; col < mapInfo.cols; col++){
             tmp = isMax[(size_t)(row * mapInfo.cols + col)];
-            if(tmp.isMax == 1){
+            if(tmp.isMax == 1 && arrayTmp[row * mapInfo.cols + col] >= minCutoff){
                 ret.push_back(((row - center.second) * -1) / mapRel.res);
                 ret.push_back((col - center.first) / mapRel.res);
                 ret.push_back(tmp.classVal);
-                ret.push_back((arrayTmp[row * mapInfo.cols + col]));
+                ret.push_back(arrayTmp[row * mapInfo.cols + col]);
             }
         }
     }
@@ -296,4 +296,3 @@ void Position::recalc(){
 }
 
 //-----------------------------------------------------------------------------
-// 

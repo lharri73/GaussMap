@@ -2,6 +2,9 @@ MapWidth: 100         ## (int) Width of the heat map in meters
 MapHeight: 100        ## (int) Height of the heat map in meters
 MapResolution: 5      ## (int) Number of cells per meter along each linear axis.
                       ## - Number of cells per square meter = MapResolution^2
+UseMinValue: True
+MinGaussValue: .25
+
 Radar:
   StdDev: 1.0         ## (float) Standard deviation of each radar point's normal distribution
   Mean: 0.0           ## (float) mean of each radar points normal distribution
@@ -9,23 +12,23 @@ Radar:
 
 Camera:
   ## Car
-  - StdDev: 2.0
+  - StdDev: 1.0
     Mean: 0
-    RadCutoff: 4.0
+    RadCutoff: 3.0
   ## Truck
-  - StdDev: 3.5
+  - StdDev: 1.0
     Mean: 0
     RadCutoff: 5.0
   ## Bus
-  - StdDev: 4.0
+  - StdDev: 1.0
     Mean: 0
-    RadCutoff: 4.5
+    RadCutoff: 6
   ## Trailer
-  - StdDev: 3.5
+  - StdDev: 1.0
     Mean: 0
-    RadCutoff: 4.0
+    RadCutoff: 3.5
   ## Construction Vehicle
-  - StdDev: 3.5
+  - StdDev: 1.0
     Mean: 0
     RadCutoff: 4.0
   ## Pedestrian
@@ -33,17 +36,17 @@ Camera:
     Mean: 0
     RadCutoff: 1.0
   ## Motorcycle
-  - StdDev: 2.0
-    Mean: 0
-    RadCutoff: 3.0
-  ## Bicycle
-  - StdDev: 2.0
-    Mean: 0
-    RadCutoff: 3.0
-  ## traffic cone
   - StdDev: 1.0
     Mean: 0
     RadCutoff: 1.0
+  ## Bicycle
+  - StdDev: 1.0
+    Mean: 0
+    RadCutoff: 1.0
+  ## traffic cone
+  - StdDev: 1.0
+    Mean: 0
+    RadCutoff: .5
   ## Barrier
   - StdDev: 1.0
     Mean: 0

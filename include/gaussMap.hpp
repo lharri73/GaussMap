@@ -56,4 +56,6 @@ class GaussMap{
                                     // called from addCameraData()
 
         std::vector<float> calcMax();
+        float minCutoff;
+        bool useMin;
 };

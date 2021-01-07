@@ -47,9 +47,17 @@ class GaussMapWrapper:
             self.map.addRadarData(radarPoints)
             self.map.addCameraData(cameraPoints)
             maxima = self.map.findMax()
+
+            ## Handle the case where there are no points found in this frame
+            if maxima.shape[0] == 0:
+                tqdm.write("No maxima for token: {}".format(frame['sample_token']))
+                self.map.reset()
+                self.results.add_boxes(frame['sample_token'], [])
+                continue
+
+            ## normalize the scores for this frame
             scores = maxima[:,3]
             scores = scores / np.max(scores)
-            # self.showImage(cameraPoints)         
 
             s_record = self.nusc.get('sample', frame['sample_token'])
             sd_record = self.nusc.get('sample_data', s_record['data']['LIDAR_TOP'])

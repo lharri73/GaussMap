@@ -1,6 +1,7 @@
 #include "gaussMap.hpp"
 #include "utils.hpp"
 #include <iostream>
+#include <limits>
 
 // allocates memory for the map
 GaussMap::GaussMap(const std::string params){
@@ -9,6 +10,11 @@ GaussMap::GaussMap(const std::string params){
     mapRel.height = config["MapHeight"].as<int>();
     mapRel.width = config["MapWidth"].as<int>();
     mapRel.res = config["MapResolution"].as<int>();
+
+    useMin = config["UseMinValue"].as<bool>();
+    minCutoff = config["MinGaussValue"].as<float>();
+    if(!useMin)
+        minCutoff = std::numeric_limits<float>::min();
 
     mapInfo.cols = mapRel.width * mapRel.res;
     mapInfo.rows = mapRel.height * mapRel.res;
