@@ -195,7 +195,8 @@ void GaussMap::calcCameraMap(){
 __global__
 void calcMaxKernel(maxVal_t *isMax, 
                   float* array, array_info *mapInfo,
-                  camVal_t *camClassData, array_info *classInfo){
+                  camVal_t *camClassData, array_info *classInfo,
+                  uint8_t* windowSizes){
     int row = threadIdx.x;
     int col = blockIdx.x;
     if(row == 0 || row == mapInfo->rows) return;
@@ -204,14 +205,16 @@ void calcMaxKernel(maxVal_t *isMax,
     float curVal = array[array_index(row,col, mapInfo)];
     if(curVal == 0) return; // not a max if it's zero
 
-    for(int i = -3; i <= 3; i++){
-        for(int j = -3; j <= 3; j++){
+    camVal_t camVal = camClassData[array_index(row,col,classInfo)];
+    int windowSize = windowSizes[camVal.classVal];
+
+    for(int i = -1 * windowSize; i <= windowSize; i++){
+        for(int j = -1 * windowSize; j <= windowSize; j++){
             if(array[array_index(row+i, col+j, mapInfo)] > curVal)
                 return;
         }
     }
 
-    camVal_t camVal = camClassData[array_index(row,col,classInfo)];
     maxVal_t toInsert;
     toInsert.isMax = 1;
     toInsert.classVal = (uint8_t) camVal.classVal;
@@ -233,7 +236,8 @@ std::vector<float> GaussMap::calcMax(){
         array,
         mapInfo_cuda,
         cameraClassData,
-        camClassInfo_cuda
+        camClassInfo_cuda,
+        windowSizes
     );
 
     cudaDeviceSynchronize();

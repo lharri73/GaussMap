@@ -46,4 +46,4 @@ __global__ void camPointKernel(mapType_t* gaussMap, float *camData,
 __global__
 void calcMaxKernel(uint8_t *isMax, float* array, 
                    array_info *mapInfo, camVal_t *camCLassData, 
-                   array_info *classInfo);
+                   array_info *classInfo, uint8_t *windowSizes);

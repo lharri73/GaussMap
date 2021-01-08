@@ -10,6 +10,19 @@ Radar:
   Mean: 0.0           ## (float) mean of each radar points normal distribution
   RadCutoff: 3.0      ## (float) distance to cutoff distribution for each radar point (meters)
 
+WindowSizes:
+  - 3   # radar only
+  - 5   # car
+  - 8   # truck
+  - 10  # bus
+  - 10  # trailer
+  - 10  # construction vehicle
+  - 3   # pedestrian
+  - 5   # motorcycle
+  - 5   # bicycle
+  - 3   # traffic cone
+  - 5   # barrier
+
 Camera:
   ## Car
   - StdDev: 1.0

@@ -58,4 +58,5 @@ class GaussMap{
         std::vector<float> calcMax();
         float minCutoff;
         bool useMin;
+        uint8_t *windowSizes;
 };

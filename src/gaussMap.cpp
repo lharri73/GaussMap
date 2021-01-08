@@ -26,6 +26,16 @@ GaussMap::GaussMap(const std::string params){
 
     checkCudaError(cudaMalloc(&array, mapInfo.cols * mapInfo.rows * mapInfo.elementSize));
 
+    // get windowsizes from the config file
+    checkCudaError(cudaMalloc(&windowSizes, sizeof(uint8_t) * config["WindowSizes"].size()));
+    uint8_t *sizesTmp = (uint8_t*)calloc(config["WindowSizes"].size(), sizeof(uint8_t));
+    for(size_t i = 0; i < config["WindowSizes"].size(); i++){
+        sizesTmp[i] = (uint8_t)config["WindowSizes"][i].as<int>();
+    }
+    checkCudaError(cudaMemcpy(windowSizes, sizesTmp, sizeof(uint8_t) * config["WindowSizes"].size(), cudaMemcpyHostToDevice));
+
+    free(sizesTmp);
+
     radarDistri = (distInfo_t*)malloc(sizeof(struct DistributionInfo));
     radarDistri->stdDev = config["Radar"]["StdDev"].as<float>();
     radarDistri->mean = config["Radar"]["Mean"].as<float>();
@@ -38,6 +48,12 @@ GaussMap::GaussMap(const std::string params){
         tmp.distCutoff = config["Camera"][i]["RadCutoff"].as<float>();
         cameraDistri.push_back(tmp);
     }
+
+    if(config["WindowSizes"].size()-1 != config["Camera"].size()){
+        printf("Window: %lu, Camera: %lu\n", config["WindowSizes"].size(), config["Camera"].size());
+        throw std::runtime_error("gaussMap:: WindowSizes must be one larger than the number of camera classes!");
+    }
+
     // allocate this struct in shared memory so we don't have to copy
     // it to each kernel when it's needed
     checkCudaError(cudaMalloc(&mapInfo_cuda, sizeof(struct Array_Info)));
@@ -83,6 +99,7 @@ GaussMap::~GaussMap(){
     safeCudaFree(radarDistri_c);
     safeCudaFree(cameraClassData);       
     safeCudaFree(camClassInfo_cuda);
+    safeCudaFree(windowSizes);
 }
 
 void GaussMap::reset(){

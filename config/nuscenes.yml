@@ -10,25 +10,25 @@ NUSCENES:
     GEN_2D_BBOX: False         # generate 2D bboxes from 3D annotations
     LIDAR_SWEEPS: 1           # number of LIDAR sweeps
     RADAR_SWEEPS: 1           # number of Radar sweeps
-    BOX_VELOCITY: False        # calculate velocity for each annotation
+    BOX_VELOCITY: False       # calculate velocity for each annotation
     MAX_BOX_DIST: 0           # Maximum box distance in m to include in annotations 
                               # (0 for no limit on distance)
     ANN_VIS_LEVELS: ['2', '3', '4']   ## annotation visibility levels
 
 ## sensors to include in the databse. All sensors not in this list are ignored.
     SENSORS: [
-      "CAM_FRONT_LEFT",
-      "CAM_FRONT_RIGHT",
-      "CAM_FRONT",
-      "CAM_BACK_LEFT",
-      "CAM_BACK_RIGHT",
-      "CAM_BACK",
+    #   "CAM_FRONT_LEFT",
+    #   "CAM_FRONT_RIGHT",
+    #   "CAM_FRONT",
+    #   "CAM_BACK_LEFT",
+    #   "CAM_BACK_RIGHT",
+    #   "CAM_BACK",
       "RADAR_FRONT_LEFT",
       "RADAR_FRONT_RIGHT",
       "RADAR_FRONT",
       "RADAR_BACK_LEFT",
       "RADAR_BACK_RIGHT",
-      "LIDAR_TOP",
+    #   "LIDAR_TOP",
     ]
 
 ## categories to include in database and their corresponding name mapping.
