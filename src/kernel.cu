@@ -63,8 +63,15 @@ void radarPointKernel(mapType_t* gaussMap,
                       array_info *mapInfo, 
                       array_rel* mapRel, 
                       array_info* radarInfo,
-                      distInfo_t* distributionInfo){
-                          
+                      distInfo_t* distributionInfo,
+                      radarId_t *radarIds){
+    // In this function, the radar point id is threadIdx.x
+
+    union{
+        radarId_t radData;
+        unsigned long long int ulong;
+    } un;
+
     for(size_t col = 0; col < mapInfo->cols; col++){
         // find where the cell is relative to the radar point
         Position diff = indexDiff(blockIdx.x, col, 
@@ -77,6 +84,11 @@ void radarPointKernel(mapType_t* gaussMap,
         float pdfVal = calcPdf(distributionInfo->stdDev, distributionInfo->mean, diff.radius);
         // printf("pdf: %f\n", pdfVal);
         atomicAdd(&gaussMap[array_index(blockIdx.x,col,mapInfo)], pdfVal);
+
+        un.radData.radarId = threadIdx.x;
+        un.radData.probability = pdfVal;
+        atomicMax((unsigned long long int*)&radarIds[array_index(blockIdx.x, col, mapInfo)], un.ulong);
+
     }
 }
 
@@ -93,7 +105,8 @@ void GaussMap::calcRadarMap(){
         mapInfo_cuda,
         mapRel_cuda,
         radarInfo_cuda,
-        radarDistri_c
+        radarDistri_c,
+        radarIds
     );
     
     // wait untill all threads sync
@@ -113,7 +126,8 @@ void GaussMap::calcRadarMap(){
 
 __global__
 void calcMaxKernel(maxVal_t *isMax, 
-                  float* array, array_info *mapInfo){
+                  float* array, array_info *mapInfo,
+                  radarId_t *radarIds, unsigned int *numMax){
     int row = threadIdx.x;
     int col = blockIdx.x;
     if(row == 0 || row == mapInfo->rows) return;
@@ -122,20 +136,24 @@ void calcMaxKernel(maxVal_t *isMax,
     float curVal = array[array_index(row,col, mapInfo)];
     if(curVal == 0) return; // not a max if it's zero
 
+    maxVal_t toInsert;
+    size_t iterator = 0;
     for(int i = -3; i <= 3; i++){
         for(int j = -3; j <= 3; j++){
             if(array[array_index(row+i, col+j, mapInfo)] > curVal)
                 return;
+            if(row+i >= 0 && col+j >= 0)
+                toInsert.radars[iterator++] = radarIds[array_index(row+i, col+j, mapInfo)].radarId;
         }
     }
 
-    maxVal_t toInsert;
     toInsert.isMax = 1;
     toInsert.classVal = 0;
     isMax[array_index(row,col,mapInfo)] = toInsert;
+    atomicInc(numMax, 0xffffffff);
 }
 
-std::vector<float> GaussMap::calcMax(){
+std::pair<array_info,float*> GaussMap::calcMax(){
     maxVal_t *isMax_cuda;
     checkCudaError(cudaMalloc(&isMax_cuda, sizeof(maxVal_t) * mapInfo.rows * mapInfo.cols));
 
@@ -145,10 +163,15 @@ std::vector<float> GaussMap::calcMax(){
     dim3 maxGridSize(mapInfo.rows, 1, 1);
     dim3 maxBlockSize(mapInfo.cols, 1, 1);
 
+    unsigned int *numMax;
+    checkCudaError(cudaMalloc(&numMax, sizeof(unsigned int)));
+
     calcMaxKernel<<<maxGridSize, maxBlockSize>>>(
         isMax_cuda,
         array,
-        mapInfo_cuda
+        mapInfo_cuda,
+        radarIds,
+        numMax
     );
 
     cudaDeviceSynchronize();
@@ -190,7 +213,17 @@ std::vector<float> GaussMap::calcMax(){
 
     free(arrayTmp);
     free(isMax);
-    return ret;
+    float* retData;
+    retData = (float*)malloc(sizeof(float) * ret.size());
+    memcpy(retData, ret.data(), sizeof(float) * ret.size());
+    array_info maxData;
+    maxData.rows = *numMax;
+    maxData.cols = 4;
+    maxData.elementSize = sizeof(float);
+
+    safeCudaFree(numMax);
+
+    return std::pair<array_info,float*>(maxData,retData);
 }
 
 //-----------------------------------------------------------------------------

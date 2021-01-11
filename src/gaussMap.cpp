@@ -21,6 +21,8 @@ GaussMap::GaussMap(const std::string params){
     mapInfo.elementSize = sizeof(mapType_t);
 
     checkCudaError(cudaMalloc(&array, mapInfo.cols * mapInfo.rows * mapInfo.elementSize));
+    // allocate memory for the radar ids
+    checkCudaError(cudaMalloc(&radarIds, sizeof(unsigned long long int) * mapInfo.rows * mapInfo.cols));
 
     radarDistri = (distInfo_t*)malloc(sizeof(struct DistributionInfo));
     radarDistri->stdDev = config["Radar"]["StdDev"].as<float>();
@@ -48,6 +50,7 @@ GaussMap::~GaussMap(){
     safeCudaFree(array);
     safeCudaFree(mapInfo_cuda);
     safeCudaFree(mapRel_cuda);
+    safeCudaFree(radarIds);
 
     if(radarData != nullptr){
         checkCudaError(cudaFree(radarData));
@@ -61,6 +64,7 @@ GaussMap::~GaussMap(){
 
 void GaussMap::reset(){
     checkCudaError(cudaMemset(array, 0, mapInfo.cols * mapInfo.rows * mapInfo.elementSize));
+    checkCudaError(cudaMemset(radarIds, 0, sizeof(unsigned long long int) * mapInfo.rows * mapInfo.cols));
 
     safeCudaFree(radarData);
 
@@ -120,19 +124,18 @@ py::array_t<mapType_t> GaussMap::asArray(){
 // Nx2 [[row,col],...]
 py::array_t<float> GaussMap::findMax(){
 
-    std::vector<float> values = calcMax();
-    float *vecData = (float*)malloc(values.size() * sizeof(float));
-    memcpy(vecData, values.data(), values.size() * sizeof(float));
+    float *vecData; // = (float*)malloc(values.size() * sizeof(float));
+    std::pair<array_info,float*> maxima = calcMax();
 
-    int rows = values.size() /4;
+    int rows = maxima.first.rows;
 
     py::buffer_info ret(
-        vecData,
+        maxima.second,
         sizeof(float),
         py::format_descriptor<float>::format(),
         2,
-        {rows,4},
-        {sizeof(float) * 4, sizeof(float) * 1}
+        {rows, (int)maxima.first.cols},
+        {sizeof(float) * maxima.first.cols, sizeof(float) * 1}
     );
     return py::array_t<float>(ret);
 }

@@ -36,6 +36,7 @@ class GaussMap{
 
         RadarData_t* radarData;     // set to nullptr until received
         array_info radarInfo, *radarInfo_cuda;
+        radarId_t *radarIds;
 
         distInfo_t* radarDistri;         // normal distrubution info. 
         distInfo_t* radarDistri_c;       // 0: stddev, 1: mean, 2: distance cutoff
@@ -43,7 +44,7 @@ class GaussMap{
         void calcRadarMap();        // function used to setup the kernel. 
                                     // called from addRadarData()
 
-        std::vector<float> calcMax();
+        std::pair<array_info,float*> calcMax();
         float minCutoff;
         bool useMin;
 };

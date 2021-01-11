@@ -37,6 +37,6 @@ __device__ float calcPdf(float stdDev, float mean, float radius);
 // to the value already in the heat map.
 __global__ void radarPointKernel(mapType_t* gaussMap, RadarData_t *radarData, 
                                 array_info* mapInfo, array_rel* mapRel, 
-                                array_info* radarInfo, distInfo_t* distributionInfo);
+                                array_info* radarInfo, distInfo_t* distributionInfo, radarId_t *radarIds);
 
 __global__ void calcMaxKernel(uint8_t *isMax, float* array, array_info *mapInfo);
