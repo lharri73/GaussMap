@@ -109,93 +109,11 @@ void GaussMap::calcRadarMap(){
 }
 
 //-----------------------------------------------------------------------------
-// Camera point stuff
-
-__global__ 
-void camPointKernel(mapType_t* gaussMap, 
-                    float *camData, 
-                    array_info *mapInfo, 
-                    array_rel* mapRel, 
-                    array_info* camInfo,
-                    distInfo_t* distributionInfo,
-                    camVal_t *camClassVals,
-                    array_info* camClassInfo){
-    /*
-    For every camera point, go through each cell in the map and determine the PDF
-    value iff the cell is within the cutoff radius. If it is, add the value of 
-    the PDF to the gaussMap. This function also records the point's PDF value and
-    class in the camClassVals array. This includes the pdf and the class with the
-    pdf as the most significant 32 bits of the 64 bit element size array. We use 
-    a union to get this value as an unsigned long long int for an atomicMax that
-    will store the maximum of either the value in the array or the value passed
-    as input (what is calculated for this particular camera point). This allows us
-    to keep a map of classes based on camera points, keeping only the class data 
-    originating from the closest camera point if overlap occurs. 
-    */
-
-    // class vals in the camera list are 1 indexed (zero is background)
-    // the config list is provided as a zero-indexed list, so decrement
-    uint8_t classVal = __half2ushort_rn(camData[array_index(threadIdx.x, 2, camInfo)] - 1);
-    
-    for(size_t col = 0; col < mapInfo->cols; col++){
-        // find where the cell is relative to the radar point
-        Position diff = indexDiff(blockIdx.x, col, 
-                                    camData, threadIdx.x, 
-                                    camInfo, mapInfo, mapRel);
-        // don't calculate the pdf of this cell if it's too far away
-        if(diff.radius > distributionInfo[classVal].distCutoff)
-            continue;
-
-        float pdfVal = calcPdf(distributionInfo[classVal].stdDev, distributionInfo[classVal].mean, diff.radius);
-        atomicAdd(&gaussMap[array_index(blockIdx.x,col,mapInfo)], pdfVal);
-
-        union {
-            camVal_t camVal;
-            unsigned long long int ulong;
-        } cat;
-
-        cat.ulong = 0; // initialize to 0
-        cat.camVal.probability = pdfVal;
-        cat.camVal.classVal = (uint32_t)camData[array_index(threadIdx.x, 2, camInfo)];
-        
-        atomicMax((unsigned long long*)&camClassVals[array_index(blockIdx.x,col,camClassInfo)], cat.ulong);
-    }
-}
-
-void GaussMap::calcCameraMap(){
-    checkCudaError(cudaMemcpy(cameraInfo_cuda, &cameraInfo, sizeof(struct Array_Info), cudaMemcpyHostToDevice));
-
-    // allocate the camera class array
-    
-    camPointKernel<<<mapInfo.rows,cameraInfo.rows>>>(
-        array,
-        cameraData,
-        mapInfo_cuda,
-        mapRel_cuda,
-        cameraInfo_cuda,
-        cameraDistri_c,
-        cameraClassData,
-        camClassInfo_cuda
-    );
-
-    // wait untill all threads sync
-    cudaDeviceSynchronize();
-    cudaError_t error = cudaGetLastError();
-    if(error != cudaSuccess){
-        std::stringstream ss;
-        ss << "camPointKernel launch failed\n";
-        ss << cudaGetErrorString(error);
-        throw std::runtime_error(ss.str());
-    }
-}
-
-//-----------------------------------------------------------------------------
 // maxima locating
 
 __global__
 void calcMaxKernel(maxVal_t *isMax, 
-                  float* array, array_info *mapInfo,
-                  camVal_t *camClassData, array_info *classInfo){
+                  float* array, array_info *mapInfo){
     int row = threadIdx.x;
     int col = blockIdx.x;
     if(row == 0 || row == mapInfo->rows) return;
@@ -211,10 +129,9 @@ void calcMaxKernel(maxVal_t *isMax,
         }
     }
 
-    camVal_t camVal = camClassData[array_index(row,col,classInfo)];
     maxVal_t toInsert;
     toInsert.isMax = 1;
-    toInsert.classVal = (uint8_t) camVal.classVal;
+    toInsert.classVal = 0;
     isMax[array_index(row,col,mapInfo)] = toInsert;
 }
 
@@ -231,9 +148,7 @@ std::vector<float> GaussMap::calcMax(){
     calcMaxKernel<<<maxGridSize, maxBlockSize>>>(
         isMax_cuda,
         array,
-        mapInfo_cuda,
-        cameraClassData,
-        camClassInfo_cuda
+        mapInfo_cuda
     );
 
     cudaDeviceSynchronize();

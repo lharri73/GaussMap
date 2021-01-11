@@ -21,7 +21,6 @@ class GaussMap{
         // used to add radar data to the map. (can only be called once) TODO: make sure only called once
         // takes a contiguous, 2 dimensional numpy array
         void addRadarData(py::array_t<RadarData_t, py::array::c_style | py::array::forcecast> array);
-        void addCameraData(py::array_t<RadarData_t, py::array::c_style | py::array::forcecast> array);
 
         // returns the heatmap as a 2 dimensional numpy array
         py::array_t<mapType_t> asArray();
@@ -38,22 +37,11 @@ class GaussMap{
         RadarData_t* radarData;     // set to nullptr until received
         array_info radarInfo, *radarInfo_cuda;
 
-        float* cameraData;          // set to nullptr until received
-        camVal_t* cameraClassData;
-        array_info cameraInfo, *cameraInfo_cuda;
-        array_info camClassInfo, *camClassInfo_cuda;
-
-        std::vector<distInfo_t> cameraDistri;
-        distInfo_t* cameraDistri_c;
-
         distInfo_t* radarDistri;         // normal distrubution info. 
         distInfo_t* radarDistri_c;       // 0: stddev, 1: mean, 2: distance cutoff
 
         void calcRadarMap();        // function used to setup the kernel. 
                                     // called from addRadarData()
-
-        void calcCameraMap();       // function used to setup the kernel. 
-                                    // called from addCameraData()
 
         std::vector<float> calcMax();
         float minCutoff;

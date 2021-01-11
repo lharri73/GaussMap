@@ -39,11 +39,4 @@ __global__ void radarPointKernel(mapType_t* gaussMap, RadarData_t *radarData,
                                 array_info* mapInfo, array_rel* mapRel, 
                                 array_info* radarInfo, distInfo_t* distributionInfo);
 
-__global__ void camPointKernel(mapType_t* gaussMap, float *camData, 
-                                array_info* mapInfo, array_rel* mapRel, 
-                                array_info* camInfo, distInfo_t* distributionInfo,
-                                camVal_t* camClasVals, array_info* camClasInfo);
-__global__
-void calcMaxKernel(uint8_t *isMax, float* array, 
-                   array_info *mapInfo, camVal_t *camCLassData, 
-                   array_info *classInfo);
+__global__ void calcMaxKernel(uint8_t *isMax, float* array, array_info *mapInfo);
