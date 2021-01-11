@@ -18,13 +18,14 @@ typedef struct Array_Relationship{
 } array_rel;
 
 typedef struct CamVal{
-    uint32_t classVal;      // uint16 so it's aligned to dopuble word (32 bits)
+    uint32_t classVal;      // uint32 so it's aligned to double word (32 bits)
     float probability;      // value of pdf
 } camVal_t;
 
 typedef struct MaxVal{
     uint8_t isMax;
     uint8_t classVal;
+    uint16_t radars[49];
 } maxVal_t;
 
 typedef struct DistributionInfo{
@@ -32,3 +33,8 @@ typedef struct DistributionInfo{
     float stdDev;
     float distCutoff;
 } distInfo_t;
+
+typedef struct RadarIds{
+    uint32_t radarId;      // uint32 so it's aligned to double word
+    float probability;     // value of pdf
+} radarId_t;

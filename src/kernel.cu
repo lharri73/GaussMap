@@ -8,6 +8,9 @@
 #include <math_constants.h>     // CUDART_PI_F
 #include "gaussMap.cuh"
 
+
+#include <iostream>
+
 __device__ __forceinline__
 size_t array_index(size_t row, size_t col, array_info *info){
     // helper function to find the array index
@@ -63,8 +66,16 @@ void radarPointKernel(mapType_t* gaussMap,
                       array_info *mapInfo, 
                       array_rel* mapRel, 
                       array_info* radarInfo,
-                      distInfo_t* distributionInfo){
-                          
+                      distInfo_t* distributionInfo,
+                      radarId_t *radarIds)
+    {
+    // In this function, the radar point id is threadIdx.x
+
+    union{
+        radarId_t radData;
+        unsigned long long int ulong;
+    } un;
+
     for(size_t col = 0; col < mapInfo->cols; col++){
         // find where the cell is relative to the radar point
         Position diff = indexDiff(blockIdx.x, col, 
@@ -77,6 +88,11 @@ void radarPointKernel(mapType_t* gaussMap,
         float pdfVal = calcPdf(distributionInfo->stdDev, distributionInfo->mean, diff.radius);
         // printf("pdf: %f\n", pdfVal);
         atomicAdd(&gaussMap[array_index(blockIdx.x,col,mapInfo)], pdfVal);
+
+        un.radData.radarId = threadIdx.x;
+        un.radData.probability = pdfVal;
+
+        atomicMax((unsigned long long int*)&radarIds[array_index(blockIdx.x, col, mapInfo)], un.ulong);
     }
 }
 
@@ -93,7 +109,8 @@ void GaussMap::calcRadarMap(){
         mapInfo_cuda,
         mapRel_cuda,
         radarInfo_cuda,
-        radarDistri_c
+        radarDistri_c,
+        radarIds
     );
     
     // wait untill all threads sync
@@ -196,7 +213,8 @@ __global__
 void calcMaxKernel(maxVal_t *isMax, 
                   float* array, array_info *mapInfo,
                   camVal_t *camClassData, array_info *classInfo,
-                  uint8_t* windowSizes){
+                  uint8_t* windowSizes, radarId_t *radarIds,
+                  unsigned int *numMax){
     int row = threadIdx.x;
     int col = blockIdx.x;
     if(row == 0 || row == mapInfo->rows) return;
@@ -206,22 +224,28 @@ void calcMaxKernel(maxVal_t *isMax,
     if(curVal == 0) return; // not a max if it's zero
 
     camVal_t camVal = camClassData[array_index(row,col,classInfo)];
-    int windowSize = windowSizes[camVal.classVal];
-
+    // int windowSize = windowSizes[camVal.classVal];
+    int windowSize = 3;
+    
+    maxVal_t toInsert;
+    size_t iterator = 0;
     for(int i = -1 * windowSize; i <= windowSize; i++){
         for(int j = -1 * windowSize; j <= windowSize; j++){
             if(array[array_index(row+i, col+j, mapInfo)] > curVal)
                 return;
+            if(row+i >=0 && col +j >= 0){
+                toInsert.radars[iterator++] = radarIds[array_index(row+i, col+j, mapInfo)].radarId;
+            }
         }
     }
 
-    maxVal_t toInsert;
     toInsert.isMax = 1;
     toInsert.classVal = (uint8_t) camVal.classVal;
     isMax[array_index(row,col,mapInfo)] = toInsert;
+    atomicInc(numMax, 0xffffffff);  // max of unsigned int
 }
 
-std::vector<float> GaussMap::calcMax(){
+std::pair<array_info,float*> GaussMap::calcMax(){
     maxVal_t *isMax_cuda;
     checkCudaError(cudaMalloc(&isMax_cuda, sizeof(maxVal_t) * mapInfo.rows * mapInfo.cols));
 
@@ -231,13 +255,19 @@ std::vector<float> GaussMap::calcMax(){
     dim3 maxGridSize(mapInfo.rows, 1, 1);
     dim3 maxBlockSize(mapInfo.cols, 1, 1);
 
+    unsigned int *numMax;
+    checkCudaError(cudaMalloc(&numMax, sizeof(unsigned int)));
+    checkCudaError(cudaMemset(numMax, 0, sizeof(unsigned int)));
+
     calcMaxKernel<<<maxGridSize, maxBlockSize>>>(
         isMax_cuda,
         array,
         mapInfo_cuda,
         cameraClassData,
         camClassInfo_cuda,
-        windowSizes
+        windowSizes,
+        radarIds,
+        numMax
     );
 
     cudaDeviceSynchronize();
@@ -248,38 +278,74 @@ std::vector<float> GaussMap::calcMax(){
         ss << cudaGetErrorString(error);
         throw std::runtime_error(ss.str());
     }
+   
+    float* ret;
+    float* ret_c;
 
-    // copy back to host so we can iterate over it
-    maxVal_t *isMax = (maxVal_t*)calloc(sizeof(maxVal_t), mapInfo.rows * mapInfo.cols);
-    checkCudaError(cudaMemcpy(isMax, isMax_cuda, sizeof(maxVal_t) * mapInfo.rows * mapInfo.cols, cudaMemcpyDeviceToHost));
+    unsigned int *numMaxima;
+    numMaxima = (unsigned int*)malloc(sizeof(unsigned int));
+    checkCudaError(cudaMemcpy(numMaxima, numMax, sizeof(unsigned int), cudaMemcpyDeviceToHost));
+    safeCudaFree(numMax);
+
     
-    float *arrayTmp = (float*)calloc(sizeof(float), mapInfo.rows * mapInfo.cols);
-    checkCudaError(cudaMemcpy(arrayTmp, array, sizeof(float) * mapInfo.rows * mapInfo.cols, cudaMemcpyDeviceToHost));
+    array_info maxInfo;
+    maxInfo.rows = *numMaxima;
+    maxInfo.cols = 4;
+    maxInfo.elementSize = sizeof(float);
+    checkCudaError(cudaMalloc(&ret_c, sizeof(float) * maxInfo.rows * maxInfo.cols));
     
+    array_info *maxInfo_c;
+    checkCudaError(cudaMalloc(&maxInfo_c, sizeof(array_info)));
+    checkCudaError(cudaMemcpy(maxInfo_c, &maxInfo, sizeof(array_info), cudaMemcpyHostToDevice));
+    
+    aggregateMax<<<1,*numMaxima>>>(
+        array,
+        mapInfo_cuda,
+        mapRel_cuda,
+        isMax_cuda,
+        ret_c,
+        radarIds,
+        maxInfo_c,
+        minCutoff
+    );
+    
+    cudaDeviceSynchronize();
+    cudaError_t error2 = cudaGetLastError();
+    if(error2 != cudaSuccess){
+        std::stringstream ss;
+        ss << "aggregateMaxKernel launch failed\n";
+        ss << cudaGetErrorString(error2);
+        throw std::runtime_error(ss.str());
+    }
+    
+    ret = (float*)malloc(*numMaxima * maxInfo.cols * sizeof(float));
+    checkCudaError(cudaMemcpy(ret, ret_c, maxInfo.elementSize * maxInfo.rows * maxInfo.cols, cudaMemcpyDeviceToHost));
 
+    safeCudaFree(ret_c);
+    safeCudaFree(isMax_cuda);
+    safeCudaFree(maxInfo_c);
+    free(numMaxima);
+    return std::pair<array_info,float*>(maxInfo,ret);
+}
 
-    // now we don't need the device memory since it's on the host
-    checkCudaError(cudaFree(isMax_cuda));
-
-    std::pair<float,float> center(mapInfo.cols/2, mapInfo.rows/2);
-
+__global__ void aggregateMax(mapType_t *array, array_info *mapInfo, array_rel *mapRel,
+                             maxVal_t *isMax, float* ret, radarId_t *radarIds,
+                             array_info* maxInfo, float minCutoff){
+    size_t maxFound = 0;
     maxVal_t tmp;
-    std::vector<float> ret;   // stored as (row,col,class,row,col,class,row,col,class,...)
-    for(size_t row = 0; row < mapInfo.rows; row++){
-        for(size_t col = 0; col < mapInfo.cols; col++){
-            tmp = isMax[(size_t)(row * mapInfo.cols + col)];
-            if(tmp.isMax == 1 && arrayTmp[row * mapInfo.cols + col] >= minCutoff){
-                ret.push_back(((row - center.second) * -1) / mapRel.res);
-                ret.push_back((col - center.first) / mapRel.res);
-                ret.push_back(tmp.classVal);
-                ret.push_back(arrayTmp[row * mapInfo.cols + col]);
+    for(size_t row = 0; row < mapInfo->rows; row++){
+        for(size_t col = 0; col < mapInfo->cols; col++){
+            tmp = isMax[(size_t)(row * mapInfo->cols + col)];
+            if(tmp.isMax == 1 && array[row * mapInfo->cols + col] >= minCutoff){
+                if(maxFound++ == threadIdx.x){
+                    ret[array_index(threadIdx.x, 0, maxInfo)] = ((float)(row - mapInfo->rows/2.0) * -1.0) / mapRel->res;
+                    ret[array_index(threadIdx.x, 1, maxInfo)] = (col - mapInfo->cols/2.0) / mapRel->res;
+                    ret[array_index(threadIdx.x, 2, maxInfo)] = tmp.classVal;
+                    ret[array_index(threadIdx.x, 3, maxInfo)] = array[row * mapInfo->cols + col];
+                }
             }
         }
     }
-
-    free(arrayTmp);
-    free(isMax);
-    return ret;
 }
 
 //-----------------------------------------------------------------------------

@@ -3,8 +3,9 @@
 #include <iostream>
 #include <limits>
 
-// allocates memory for the map
 GaussMap::GaussMap(const std::string params){
+
+    // gather config values
     YAML::Node config = YAML::LoadFile(params);
 
     mapRel.height = config["MapHeight"].as<int>();
@@ -24,7 +25,10 @@ GaussMap::GaussMap(const std::string params){
     camClassInfo.cols = mapInfo.cols;
     camClassInfo.elementSize = sizeof(struct CamVal);
 
+    // allocate memory for the map itself
     checkCudaError(cudaMalloc(&array, mapInfo.cols * mapInfo.rows * mapInfo.elementSize));
+    // allocate memory for the radar ids
+    checkCudaError(cudaMalloc(&radarIds, sizeof(unsigned long long int) * mapInfo.rows * mapInfo.cols));
 
     // get windowsizes from the config file
     checkCudaError(cudaMalloc(&windowSizes, sizeof(uint8_t) * config["WindowSizes"].size()));
@@ -36,6 +40,7 @@ GaussMap::GaussMap(const std::string params){
 
     free(sizesTmp);
 
+    // now get the distribution information from the config file
     radarDistri = (distInfo_t*)malloc(sizeof(struct DistributionInfo));
     radarDistri->stdDev = config["Radar"]["StdDev"].as<float>();
     radarDistri->mean = config["Radar"]["Mean"].as<float>();
@@ -100,11 +105,13 @@ GaussMap::~GaussMap(){
     safeCudaFree(cameraClassData);       
     safeCudaFree(camClassInfo_cuda);
     safeCudaFree(windowSizes);
+    safeCudaFree(radarIds);
 }
 
 void GaussMap::reset(){
     checkCudaError(cudaMemset(array, 0, mapInfo.cols * mapInfo.rows * mapInfo.elementSize));
     checkCudaError(cudaMemset(cameraClassData, 0, camClassInfo.elementSize * camClassInfo.rows * camClassInfo.cols));
+    checkCudaError(cudaMemset(radarIds, 0, sizeof(unsigned long long int) * mapInfo.rows * mapInfo.cols));
 
     safeCudaFree(radarData);
     safeCudaFree(cameraData);
@@ -196,19 +203,18 @@ py::array_t<mapType_t> GaussMap::asArray(){
 // Nx2 [[row,col],...]
 py::array_t<float> GaussMap::findMax(){
 
-    std::vector<float> values = calcMax();
-    float *vecData = (float*)malloc(values.size() * sizeof(float));
-    memcpy(vecData, values.data(), values.size() * sizeof(float));
+    float *vecData; // = (float*)malloc(values.size() * sizeof(float));
+    std::pair<array_info,float*> maxima = calcMax();
 
-    int rows = values.size() /4;
+    int rows = maxima.first.rows;
 
     py::buffer_info ret(
-        vecData,
+        maxima.second,
         sizeof(float),
         py::format_descriptor<float>::format(),
         2,
-        {rows,4},
-        {sizeof(float) * 4, sizeof(float) * 1}
+        {rows, (int)maxima.first.cols},
+        {sizeof(float) * maxima.first.cols, sizeof(float) * 1}
     );
     return py::array_t<float>(ret);
 }

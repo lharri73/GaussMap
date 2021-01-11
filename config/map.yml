@@ -10,6 +10,7 @@ Radar:
   Mean: 0.0           ## (float) mean of each radar points normal distribution
   RadCutoff: 3.0      ## (float) distance to cutoff distribution for each radar point (meters)
 
+## NOTE: this isn't being used right now, hardcoded to 3
 WindowSizes:
   - 3   # radar only
   - 5   # car

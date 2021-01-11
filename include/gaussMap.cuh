@@ -37,13 +37,21 @@ __device__ float calcPdf(float stdDev, float mean, float radius);
 // to the value already in the heat map.
 __global__ void radarPointKernel(mapType_t* gaussMap, RadarData_t *radarData, 
                                 array_info* mapInfo, array_rel* mapRel, 
-                                array_info* radarInfo, distInfo_t* distributionInfo);
+                                array_info* radarInfo, distInfo_t* distributionInfo,
+                                radarId_t *radarIds);
 
 __global__ void camPointKernel(mapType_t* gaussMap, float *camData, 
                                 array_info* mapInfo, array_rel* mapRel, 
                                 array_info* camInfo, distInfo_t* distributionInfo,
                                 camVal_t* camClasVals, array_info* camClasInfo);
+
+__global__ void aggregateMax(mapType_t *array, array_info *mapInfo,
+                             array_rel *mapRel, maxVal_t *isMax, 
+                             float* ret, radarId_t *radarIds,
+                             array_info* maxInfo, float minCutoff);
+
 __global__
 void calcMaxKernel(uint8_t *isMax, float* array, 
                    array_info *mapInfo, camVal_t *camCLassData, 
-                   array_info *classInfo, uint8_t *windowSizes);
+                   array_info *classInfo, uint8_t *windowSizes,
+                   unsigned int *numMax);

@@ -44,9 +44,19 @@ class GaussMapWrapper:
             # np.savetxt("radar.txt", radarPoints[:,:2])
 
             ## create the heatmap
+            start = time.time()
             self.map.addRadarData(radarPoints)
+            radar = time.time()
             self.map.addCameraData(cameraPoints)
+            camera = time.time()
             maxima = self.map.findMax()
+            maxim = time.time()
+            tqdm.write("radar: {:.5f} camera: {:.5f} maxima: {:.5f} total: {:.5f}".format(
+                radar-start,
+                camera-radar,
+                maxim-camera,
+                maxim-start
+            ))
 
             ## Handle the case where there are no points found in this frame
             if maxima.shape[0] == 0:

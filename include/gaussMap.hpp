@@ -37,6 +37,7 @@ class GaussMap{
 
         RadarData_t* radarData;     // set to nullptr until received
         array_info radarInfo, *radarInfo_cuda;
+        radarId_t *radarIds;
 
         float* cameraData;          // set to nullptr until received
         camVal_t* cameraClassData;
@@ -55,7 +56,7 @@ class GaussMap{
         void calcCameraMap();       // function used to setup the kernel. 
                                     // called from addCameraData()
 
-        std::vector<float> calcMax();
+        std::pair<array_info,float*> calcMax();
         float minCutoff;
         bool useMin;
         uint8_t *windowSizes;
