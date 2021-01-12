@@ -43,9 +43,12 @@ class GaussMapWrapper:
 
 
             ## create the heatmap
+            start = time.time()
             self.map.addRadarData(radarPoints)
-            # self.map.addCameraData(cameraPoints)
+            radar = time.time()
             maxima = self.map.findMax()
+            maxTime = time.time()
+            tqdm.write("radar: {:.5f}, maxima: {:.5f}, total: {:.5f}".format(radar-start, maxTime-radar, maxTime-start))
 
             ## Handle the case where there are no points found in this frame
             if maxima.shape[0] == 0:
@@ -70,7 +73,7 @@ class GaussMapWrapper:
                                    size=[1,1,1], 
                                    rotation=[1,0,0,0], 
                                    velocity=[0,0], 
-                                   detection_name=self.class_reverse[round(maxima[i,2])],
+                                   detection_name=self.class_reverse[0],
                                    detection_score=float(scores[i]))
                 box = vehicle_to_global(box, pose_rec)
                 boxes.append(box)

@@ -63,7 +63,7 @@ GaussMap::~GaussMap(){
 
 void GaussMap::reset(){
     checkCudaError(cudaMemset(array, 0, mapInfo.cols * mapInfo.rows * mapInfo.elementSize));
-    checkCudaError(cudaMemset(radarIds, 0, sizeof(unsigned long long int) * mapInfo.rows * mapInfo.cols));
+    checkCudaError(cudaMemset(radarIds, -1, sizeof(unsigned long long int) * mapInfo.rows * mapInfo.cols));
 
     safeCudaFree(radarData);
 

@@ -153,6 +153,46 @@ void calcMaxKernel(maxVal_t *isMax,
     toInsert->classVal = 0;
 }
 
+__device__ __forceinline__
+float calcMean(size_t col, int16_t* radars, RadarData_t *radarData, array_info *radarInfo){
+    float total = 0;
+    size_t numPoints = 0;
+    for(size_t i = 0; i < 49; i++){
+        if(radars[i] == -1) continue;
+
+        total += radarData[array_index(radars[i], col, radarInfo)];
+        numPoints++;
+    }
+    
+    return (total/numPoints);
+}
+
+__global__ 
+void aggregateMax(mapType_t *array, array_info *mapInfo, array_rel *mapRel,
+                             maxVal_t *isMax, float* ret, radarId_t *radarIds,
+                             array_info* maxInfo, float minCutoff,
+                             RadarData_t *radarData, array_info *radarInfo){
+    // creates an array with the return information in the form of:
+    // [row, col, class, pdfVal, vx, vy]
+    size_t maxFound = 0;
+    maxVal_t tmp;
+    for(size_t row = 0; row < mapInfo->rows; row++){
+        for(size_t col = 0; col < mapInfo->cols; col++){
+            tmp = isMax[(size_t)(row * mapInfo->cols + col)];
+            if(tmp.isMax == 1 && array[row * mapInfo->cols + col] >= minCutoff){
+                if(maxFound++ == threadIdx.x){
+                    ret[array_index(threadIdx.x, 0, maxInfo)] = ((float)(row - mapInfo->rows/2.0) * -1.0) / mapRel->res;
+                    ret[array_index(threadIdx.x, 1, maxInfo)] = (col - mapInfo->cols/2.0) / mapRel->res;
+                    ret[array_index(threadIdx.x, 2, maxInfo)] = radarData[array_index(tmp.radars[49/2],3, radarInfo)];
+                    ret[array_index(threadIdx.x, 3, maxInfo)] = array[row * mapInfo->cols + col];
+                    ret[array_index(threadIdx.x, 4, maxInfo)] = calcMean(8, tmp.radars, radarData, radarInfo);
+                    ret[array_index(threadIdx.x, 5, maxInfo)] = calcMean(9, tmp.radars, radarData, radarInfo);
+                }
+            }
+        }
+    }
+}
+
 std::pair<array_info,float*> GaussMap::calcMax(){
     maxVal_t *isMax_cuda;
     checkCudaError(cudaMalloc(&isMax_cuda, sizeof(maxVal_t) * mapInfo.rows * mapInfo.cols));
@@ -170,7 +210,6 @@ std::pair<array_info,float*> GaussMap::calcMax(){
         radarIds
     );
 
-    
     cudaDeviceSynchronize();
     cudaError_t error = cudaGetLastError();
     if(error != cudaSuccess){
@@ -180,46 +219,69 @@ std::pair<array_info,float*> GaussMap::calcMax(){
         throw std::runtime_error(ss.str());
     }
 
-    
     // copy back to host so we can iterate over it
     maxVal_t *isMax = (maxVal_t*)calloc(sizeof(maxVal_t), mapInfo.rows * mapInfo.cols);
     checkCudaError(cudaMemcpy(isMax, isMax_cuda, sizeof(maxVal_t) * mapInfo.rows * mapInfo.cols, cudaMemcpyDeviceToHost));
     
-    
     float *arrayTmp = (float*)calloc(sizeof(float), mapInfo.rows * mapInfo.cols);
     checkCudaError(cudaMemcpy(arrayTmp, array, sizeof(float) * mapInfo.rows * mapInfo.cols, cudaMemcpyDeviceToHost));
-    
-    // now we don't need the device memory since it's on the host
-    checkCudaError(cudaFree(isMax_cuda));
-    
-    std::pair<float,float> center(mapInfo.cols/2, mapInfo.rows/2);
-    
+
+    // find the number of maxima
+    // this can be optimized later
+    size_t numMax = 0;
     maxVal_t tmp;
-    std::vector<float> ret;   // stored as (row,col,class,row,col,class,row,col,class,...)
     for(size_t row = 0; row < mapInfo.rows; row++){
         for(size_t col = 0; col < mapInfo.cols; col++){
             tmp = isMax[(size_t)(row * mapInfo.cols + col)];
             if(tmp.isMax == 1 && arrayTmp[row * mapInfo.cols + col] >= minCutoff){
-                ret.push_back(((row - center.second) * -1) / mapRel.res);
-                ret.push_back((col - center.first) / mapRel.res);
-                ret.push_back(tmp.classVal);
-                ret.push_back(arrayTmp[row * mapInfo.cols + col]);
+                numMax++;
             }
         }
     }
     
-    free(arrayTmp);
-    free(isMax);
-    float* retData;
-    retData = (float*)malloc(sizeof(float) * ret.size());
-    memcpy(retData, ret.data(), sizeof(float) * ret.size());
-
- 
     array_info maxData;
-    maxData.rows = ret.size() /4;
-    maxData.cols = 4;
+    maxData.cols = 6;
+    maxData.rows = numMax;
     maxData.elementSize = sizeof(float);
-    return std::pair<array_info,float*>(maxData,retData);
+
+   
+    array_info *maxData_c;
+    checkCudaError(cudaMalloc(&maxData_c, sizeof(array_info)));
+    checkCudaError(cudaMemcpy(maxData_c, &maxData, sizeof(array_info), cudaMemcpyHostToDevice));
+
+    float *ret, *ret_c;
+    checkCudaError(cudaMalloc(&ret_c, sizeof(float) * maxData.rows * maxData.cols));
+
+    aggregateMax<<<1, numMax>>>(
+        array,
+        mapInfo_cuda,
+        mapRel_cuda,
+        isMax_cuda,
+        ret_c,
+        radarIds,
+        maxData_c,
+        minCutoff,
+        radarData,
+        radarInfo_cuda
+    );
+
+    cudaDeviceSynchronize();
+    cudaError_t error2 = cudaGetLastError();
+    if(error2 != cudaSuccess){
+        std::stringstream ss;
+        ss << "aggregateMaxKernel launch failed\n";
+        ss << cudaGetErrorString(error2);
+        throw std::runtime_error(ss.str());
+    }
+
+    ret = (float*)malloc(maxData.rows * maxData.cols * sizeof(float));
+    checkCudaError(cudaMemcpy(ret, ret_c, maxData.elementSize * maxData.rows * maxData.cols, cudaMemcpyDeviceToHost));
+
+    safeCudaFree(ret_c);
+    safeCudaFree(isMax_cuda);
+    safeCudaFree(maxData_c);
+
+    return std::pair<array_info,float*>(maxData,ret);
 }
 
 //-----------------------------------------------------------------------------

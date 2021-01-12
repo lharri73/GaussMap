@@ -20,7 +20,7 @@ typedef struct Array_Relationship{
 typedef struct MaxVal{
     uint8_t isMax;
     uint8_t classVal;
-    uint16_t radars[49];
+    int16_t radars[49];
 } maxVal_t;
 
 typedef struct DistributionInfo{
@@ -30,6 +30,6 @@ typedef struct DistributionInfo{
 } distInfo_t;
 
 typedef struct RadarIds{
-    uint32_t radarId;      // uint32 so it's aligned to double word
+    int32_t radarId;       // uint32 so it's aligned to double word
     float probability;     // value of pdf
 } radarId_t; 

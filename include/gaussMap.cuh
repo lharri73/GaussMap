@@ -40,3 +40,11 @@ __global__ void radarPointKernel(mapType_t* gaussMap, RadarData_t *radarData,
                                 array_info* radarInfo, distInfo_t* distributionInfo, radarId_t *radarIds);
 
 __global__ void calcMaxKernel(uint8_t *isMax, float* array, array_info *mapInfo);
+
+__device__ float calcMean(size_t col, int16_t* radars, RadarData_t *radarData, array_info *radarInfo);
+
+__global__ void aggregateMax(mapType_t *array, array_info *mapInfo,
+                             array_rel *mapRel, maxVal_t *isMax, 
+                             float* ret, radarId_t *radarIds,
+                             array_info* maxInfo, float minCutoff,
+                             RadarData_t *radarData, array_info *radarInfo);
