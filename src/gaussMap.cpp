@@ -42,7 +42,6 @@ GaussMap::GaussMap(const std::string params){
 
     // this is all done so we can check if it has been allocated later
     radarData = nullptr;
-
     reset();
 }
 
@@ -123,8 +122,6 @@ py::array_t<mapType_t> GaussMap::asArray(){
 // return the indices of the local maxima of the gaussMap
 // Nx2 [[row,col],...]
 py::array_t<float> GaussMap::findMax(){
-
-    float *vecData; // = (float*)malloc(values.size() * sizeof(float));
     std::pair<array_info,float*> maxima = calcMax();
 
     int rows = maxima.first.rows;

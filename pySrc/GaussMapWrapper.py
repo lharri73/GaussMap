@@ -41,11 +41,10 @@ class GaussMapWrapper:
             radarPoints = radarFrame['pointcloud'].points.T
             cameraPoints = np.array(self.centerTrack[frame['sample_token']])
 
-            # np.savetxt("radar.txt", radarPoints[:,:2])
 
             ## create the heatmap
             self.map.addRadarData(radarPoints)
-            self.map.addCameraData(cameraPoints)
+            # self.map.addCameraData(cameraPoints)
             maxima = self.map.findMax()
 
             ## Handle the case where there are no points found in this frame
@@ -57,6 +56,7 @@ class GaussMapWrapper:
 
             ## normalize the scores for this frame
             scores = maxima[:,3]
+            # np.savetxt("scores.txt", scores)
             scores = scores / np.max(scores)
 
             s_record = self.nusc.get('sample', frame['sample_token'])
@@ -70,7 +70,7 @@ class GaussMapWrapper:
                                    size=[1,1,1], 
                                    rotation=[1,0,0,0], 
                                    velocity=[0,0], 
-                                   detection_name=self.class_reverse[maxima[i,2]],
+                                   detection_name=self.class_reverse[round(maxima[i,2])],
                                    detection_score=float(scores[i]))
                 box = vehicle_to_global(box, pose_rec)
                 boxes.append(box)

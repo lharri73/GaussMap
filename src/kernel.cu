@@ -7,6 +7,7 @@
 #include <sstream>
 #include <math_constants.h>     // CUDART_PI_F
 #include "gaussMap.cuh"
+#include <iostream>
 
 __device__ __forceinline__
 size_t array_index(size_t row, size_t col, array_info *info){
@@ -127,7 +128,7 @@ void GaussMap::calcRadarMap(){
 __global__
 void calcMaxKernel(maxVal_t *isMax, 
                   float* array, array_info *mapInfo,
-                  radarId_t *radarIds, unsigned int *numMax){
+                  radarId_t *radarIds){
     int row = threadIdx.x;
     int col = blockIdx.x;
     if(row == 0 || row == mapInfo->rows) return;
@@ -136,21 +137,20 @@ void calcMaxKernel(maxVal_t *isMax,
     float curVal = array[array_index(row,col, mapInfo)];
     if(curVal == 0) return; // not a max if it's zero
 
-    maxVal_t toInsert;
+    maxVal_t *toInsert;
+    toInsert = &isMax[array_index(row,col,mapInfo)];
     size_t iterator = 0;
     for(int i = -3; i <= 3; i++){
         for(int j = -3; j <= 3; j++){
             if(array[array_index(row+i, col+j, mapInfo)] > curVal)
                 return;
             if(row+i >= 0 && col+j >= 0)
-                toInsert.radars[iterator++] = radarIds[array_index(row+i, col+j, mapInfo)].radarId;
+                toInsert->radars[iterator++] = radarIds[array_index(row+i, col+j, mapInfo)].radarId;
         }
     }
 
-    toInsert.isMax = 1;
-    toInsert.classVal = 0;
-    isMax[array_index(row,col,mapInfo)] = toInsert;
-    atomicInc(numMax, 0xffffffff);
+    toInsert->isMax = 1;
+    toInsert->classVal = 0;
 }
 
 std::pair<array_info,float*> GaussMap::calcMax(){
@@ -163,17 +163,14 @@ std::pair<array_info,float*> GaussMap::calcMax(){
     dim3 maxGridSize(mapInfo.rows, 1, 1);
     dim3 maxBlockSize(mapInfo.cols, 1, 1);
 
-    unsigned int *numMax;
-    checkCudaError(cudaMalloc(&numMax, sizeof(unsigned int)));
-
     calcMaxKernel<<<maxGridSize, maxBlockSize>>>(
         isMax_cuda,
         array,
         mapInfo_cuda,
-        radarIds,
-        numMax
+        radarIds
     );
 
+    
     cudaDeviceSynchronize();
     cudaError_t error = cudaGetLastError();
     if(error != cudaSuccess){
@@ -183,20 +180,20 @@ std::pair<array_info,float*> GaussMap::calcMax(){
         throw std::runtime_error(ss.str());
     }
 
+    
     // copy back to host so we can iterate over it
     maxVal_t *isMax = (maxVal_t*)calloc(sizeof(maxVal_t), mapInfo.rows * mapInfo.cols);
     checkCudaError(cudaMemcpy(isMax, isMax_cuda, sizeof(maxVal_t) * mapInfo.rows * mapInfo.cols, cudaMemcpyDeviceToHost));
     
+    
     float *arrayTmp = (float*)calloc(sizeof(float), mapInfo.rows * mapInfo.cols);
     checkCudaError(cudaMemcpy(arrayTmp, array, sizeof(float) * mapInfo.rows * mapInfo.cols, cudaMemcpyDeviceToHost));
     
-
-
     // now we don't need the device memory since it's on the host
     checkCudaError(cudaFree(isMax_cuda));
-
+    
     std::pair<float,float> center(mapInfo.cols/2, mapInfo.rows/2);
-
+    
     maxVal_t tmp;
     std::vector<float> ret;   // stored as (row,col,class,row,col,class,row,col,class,...)
     for(size_t row = 0; row < mapInfo.rows; row++){
@@ -210,19 +207,18 @@ std::pair<array_info,float*> GaussMap::calcMax(){
             }
         }
     }
-
+    
     free(arrayTmp);
     free(isMax);
     float* retData;
     retData = (float*)malloc(sizeof(float) * ret.size());
     memcpy(retData, ret.data(), sizeof(float) * ret.size());
+
+ 
     array_info maxData;
-    maxData.rows = *numMax;
+    maxData.rows = ret.size() /4;
     maxData.cols = 4;
     maxData.elementSize = sizeof(float);
-
-    safeCudaFree(numMax);
-
     return std::pair<array_info,float*>(maxData,retData);
 }
 
