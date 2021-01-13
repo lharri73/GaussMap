@@ -121,24 +121,6 @@ py::array_t<mapType_t> GaussMap::asArray(){
     return py::array_t<mapType_t>(a);
 }
 
-// return the indices of the local maxima of the gaussMap
-// Nx2 [[row,col],...]
-py::array_t<float> GaussMap::findMax(){
-    std::pair<array_info,float*> maxima = calcMax();
-
-    int rows = maxima.first.rows;
-
-    py::buffer_info ret(
-        maxima.second,
-        sizeof(float),
-        py::format_descriptor<float>::format(),
-        2,
-        {rows, (int)maxima.first.cols},
-        {sizeof(float) * maxima.first.cols, sizeof(float) * 1}
-    );
-    return py::array_t<float>(ret);
-}
-
 void GaussMap::addCameraData(py::array_t<float, py::array::c_style | py::array::forcecast> array){
     py::buffer_info buf1 = array.request();
     float* data;
@@ -184,6 +166,5 @@ PYBIND11_MODULE(gaussMap, m){
         .def("addRadarData", &GaussMap::addRadarData)
         .def("addCameraData", &GaussMap::addCameraData)
         .def("asArray", &GaussMap::asArray, py::return_value_policy::take_ownership)
-        .def("associate", &GaussMap::associate, py::return_value_policy::take_ownership)
-        .def("findMax", &GaussMap::findMax, py::return_value_policy::take_ownership);
+        .def("associate", &GaussMap::associate, py::return_value_policy::take_ownership);
 }

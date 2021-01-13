@@ -9,6 +9,7 @@ typedef struct Array_Info{
     size_t rows;            // total number of rows
     size_t cols;            // total number of columns
     size_t elementSize;     // size of a single element in bytes
+    size_t size();          // utils.cpp
 } array_info;
 
 typedef struct Array_Relationship{
