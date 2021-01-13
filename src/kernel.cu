@@ -10,14 +10,14 @@
 #include <iostream>
 
 __device__ __forceinline__
-size_t array_index(size_t row, size_t col, array_info *info){
+size_t array_index(size_t row, size_t col, const array_info *info){
     // helper function to find the array index
     return (row * info->cols) + col;
 }
 
 __device__
-Position indexDiff(size_t row, size_t col, RadarData_t *radarData, size_t radarPointIdx, 
-                   array_info *radarInfo, array_info *mapInfo, array_rel *mapRel){
+Position indexDiff(size_t row, size_t col, const RadarData_t *radarData, size_t radarPointIdx, 
+                   const array_info *radarInfo, const array_info *mapInfo, const array_rel *mapRel){
     // Calculate the position of the cell at (row,col) relative to the radar point at 
     // radarPointIdx
     Position pos = index_to_position(row, col, mapInfo, mapRel);
@@ -34,7 +34,7 @@ Position indexDiff(size_t row, size_t col, RadarData_t *radarData, size_t radarP
 }
 
 __device__ 
-Position index_to_position(size_t row, size_t col, array_info *info, array_rel *relation){
+Position index_to_position(size_t row, size_t col, const array_info *info, const array_rel *relation){
     // find the position from center of map given cell index
     float center_x = (float)(info->cols/2.0);
     float center_y = (float)(info->rows/2.0);
@@ -60,11 +60,11 @@ float calcPdf(float stdDev, float mean, float radius){
 
 __global__ 
 void radarPointKernel(mapType_t* gaussMap, 
-                      RadarData_t *radarData, 
-                      array_info *mapInfo, 
-                      array_rel* mapRel, 
-                      array_info* radarInfo,
-                      distInfo_t* distributionInfo,
+                      const RadarData_t *radarData, 
+                      const array_info *mapInfo, 
+                      const array_rel* mapRel, 
+                      const array_info* radarInfo,
+                      const distInfo_t* distributionInfo,
                       radarId_t *radarIds){
     // In this function, the radar point id is threadIdx.x
 
@@ -127,8 +127,9 @@ void GaussMap::calcRadarMap(){
 
 __global__
 void calcMaxKernel(maxVal_t *isMax, 
-                  float* array, array_info *mapInfo,
-                  radarId_t *radarIds){
+                  const float* array, 
+                  const array_info *mapInfo,
+                  const radarId_t *radarIds){
     int row = threadIdx.x;
     int col = blockIdx.x;
     if(row == 0 || row == mapInfo->rows) return;
@@ -154,7 +155,11 @@ void calcMaxKernel(maxVal_t *isMax,
 }
 
 __device__ __forceinline__
-float calcMean(size_t col, int16_t* radars, RadarData_t *radarData, array_info *radarInfo){
+float calcMean(size_t col, 
+               const int16_t* radars, 
+               const RadarData_t *radarData, 
+               const array_info *radarInfo)
+{
     float total = 0;
     size_t numPoints = 0;
     for(size_t i = 0; i < 49; i++){
@@ -168,10 +173,17 @@ float calcMean(size_t col, int16_t* radars, RadarData_t *radarData, array_info *
 }
 
 __global__ 
-void aggregateMax(mapType_t *array, array_info *mapInfo, array_rel *mapRel,
-                             maxVal_t *isMax, float* ret, radarId_t *radarIds,
-                             array_info* maxInfo, float minCutoff,
-                             RadarData_t *radarData, array_info *radarInfo){
+void aggregateMax(const mapType_t *array, 
+                  const array_info *mapInfo, 
+                  const array_rel *mapRel,
+                  const maxVal_t *isMax, 
+                  float* ret, 
+                  const radarId_t *radarIds,
+                  const array_info* maxInfo, 
+                  float minCutoff,
+                  const RadarData_t *radarData, 
+                  const array_info *radarInfo)
+{
     // creates an array with the return information in the form of:
     // [row, col, class, pdfVal, vx, vy]
     size_t maxFound = 0;
@@ -282,6 +294,35 @@ std::pair<array_info,float*> GaussMap::calcMax(){
     safeCudaFree(maxData_c);
 
     return std::pair<array_info,float*>(maxData,ret);
+}
+
+//-----------------------------------------------------------------------------
+// Association kernel
+
+__global__
+void associateCameraKernel(
+    const RadarData_t *radarData,
+    const array_info *radarInfo,
+    const float* camData,
+    const array_info *camInfo,
+    float* results,
+    const array_info *resultInfo
+){
+
+}
+
+std::pair<array_info,float*> GaussMap::associateCamera(){
+    array_info assocInfo, *assocInfo_c;
+    assocInfo.rows = radarInfo.rows + camInfo.rows;
+    assocInfo.cols = 5; // [x,y,vx,vy,class]
+    assocInfo.elementSize = sizeof(float);
+    
+    float* associated;
+    checkCudaError(cudaMalloc(&associated, assocInfo.rows * assocInfo.cols * assocInfo.elementSize * sizeof(float)));
+    checkCudaError(cudaMalloc(&assocInfo_c, sizeof(array_info)));
+    checkCudaError(cudaMemcpy(assocInfo_c, &assocInfo, sizeof(array_info), cudaMemcpyHostToDevice));
+    
+    return std::pair<array_info,float*>(mapInfo,nullptr);
 }
 
 //-----------------------------------------------------------------------------

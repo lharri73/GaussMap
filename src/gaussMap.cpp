@@ -33,6 +33,7 @@ GaussMap::GaussMap(const std::string params){
     // it to each kernel when it's needed
     checkCudaError(cudaMalloc(&mapInfo_cuda, sizeof(struct Array_Info)));
     checkCudaError(cudaMalloc(&radarInfo_cuda, sizeof(struct Array_Info)));
+    checkCudaError(cudaMalloc(&camInfo_cuda, sizeof(struct Array_Info)));
     checkCudaError(cudaMalloc(&mapRel_cuda, sizeof(struct Array_Relationship)));
     checkCudaError(cudaMalloc(&radarDistri_c, sizeof(distInfo_t)));
     
@@ -42,22 +43,21 @@ GaussMap::GaussMap(const std::string params){
 
     // this is all done so we can check if it has been allocated later
     radarData = nullptr;
+    camData = nullptr;
     reset();
 }
 
 GaussMap::~GaussMap(){
     safeCudaFree(array);
     safeCudaFree(mapInfo_cuda);
+    safeCudaFree(radarInfo_cuda);
     safeCudaFree(mapRel_cuda);
     safeCudaFree(radarIds);
 
-    if(radarData != nullptr){
-        checkCudaError(cudaFree(radarData));
-        safeCudaFree(radarInfo_cuda);
-    }
+    safeCudaFree(radarData);
+    safeCudaFree(camData);
 
     free(radarDistri);
-
     safeCudaFree(radarDistri_c);
 }
 
@@ -66,8 +66,10 @@ void GaussMap::reset(){
     checkCudaError(cudaMemset(radarIds, -1, sizeof(unsigned long long int) * mapInfo.rows * mapInfo.cols));
 
     safeCudaFree(radarData);
+    safeCudaFree(camData);
 
     radarData = nullptr;
+    camData = nullptr;
 }
 
 // this template py:array_t forces the numpy array to be passed without any strides
@@ -137,11 +139,51 @@ py::array_t<float> GaussMap::findMax(){
     return py::array_t<float>(ret);
 }
 
+void GaussMap::addCameraData(py::array_t<float, py::array::c_style | py::array::forcecast> array){
+    py::buffer_info buf1 = array.request();
+    float* data;
+    data = static_cast<float*>(buf1.ptr);
+    if(buf1.itemsize != sizeof(float)){
+        throw std::runtime_error("Invalid datatype passed with camera data. Expected float32");
+    }
+
+    camInfo.cols = buf1.shape[1];
+    camInfo.rows = buf1.shape[0];
+    camInfo.elementSize = buf1.itemsize;
+
+    checkCudaError(cudaMalloc(&camData, camInfo.elementSize * camInfo.cols * camInfo.rows));
+    checkCudaError(cudaMemcpy(camData, data, camInfo.elementSize * camInfo.cols * camInfo.rows, cudaMemcpyHostToDevice));
+
+    checkCudaError(cudaMemcpy(camInfo_cuda, &camInfo, sizeof(array_info), cudaMemcpyHostToDevice));
+
+}
+
+py::array_t<float> GaussMap::associate(){
+    if(radarData == nullptr || camData == nullptr)
+        throw std::runtime_error("Radar and Camera data must be added before association!");
+
+    std::pair<array_info,float*> associated = associateCamera();
+
+    int rows = associated.first.rows;
+
+    py::buffer_info ret(
+        associated.second,
+        sizeof(float),
+        py::format_descriptor<float>::format(),
+        2,
+        {rows, (int)associated.first.cols},
+        {sizeof(float) * associated.first.cols, sizeof(float) * 1}
+    );
+    return py::array_t<float>(ret);
+}
+
 PYBIND11_MODULE(gaussMap, m){
     py::class_<GaussMap>(m,"GaussMap")
         .def(py::init<std::string>())
         .def("reset", &GaussMap::reset)
         .def("addRadarData", &GaussMap::addRadarData)
+        .def("addCameraData", &GaussMap::addCameraData)
         .def("asArray", &GaussMap::asArray, py::return_value_policy::take_ownership)
+        .def("associate", &GaussMap::associate, py::return_value_policy::take_ownership)
         .def("findMax", &GaussMap::findMax, py::return_value_policy::take_ownership);
 }
