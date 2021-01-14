@@ -18,6 +18,7 @@ include_directories(
 
 pybind11_add_module(gaussMap
     src/gaussMap.cpp
+    src/gaussMapPy.cpp
     src/utils.cpp
     src/kernel.cu
 )

@@ -51,4 +51,4 @@ __global__ void aggregateMax(const mapType_t *array, const array_info *mapInfo,
 
 __global__ void associateCameraKernel(const RadarData_t *radarData, const array_info *radarInfo,
                            const float* camData, const array_info *camInfo,
-                           float* results, const array_info *resultInfo);
+                           float* results, const array_info *resultInfo, float* tmp);

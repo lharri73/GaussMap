@@ -207,7 +207,7 @@ void aggregateMax(const mapType_t *array,
 
 std::pair<array_info,float*> GaussMap::calcMax(){
     maxVal_t *isMax_cuda;
-    checkCudaError(cudaMalloc(&isMax_cuda, sizeof(maxVal_t) * mapInfo.rows * mapInfo.cols));
+    safeCudaMalloc(&isMax_cuda, sizeof(maxVal_t) * mapInfo.rows * mapInfo.cols);
 
     // initialize isMax to 0
     checkCudaError(cudaMemset(isMax_cuda, 0, sizeof(maxVal_t) * mapInfo.rows * mapInfo.cols));
@@ -258,11 +258,11 @@ std::pair<array_info,float*> GaussMap::calcMax(){
 
    
     array_info *maxData_c;
-    checkCudaError(cudaMalloc(&maxData_c, sizeof(array_info)));
+    safeCudaMalloc(&maxData_c, sizeof(array_info));
     checkCudaError(cudaMemcpy(maxData_c, &maxData, sizeof(array_info), cudaMemcpyHostToDevice));
 
-    float *ret, *ret_c;
-    checkCudaError(cudaMalloc(&ret_c, sizeof(float) * maxData.rows * maxData.cols));
+    float *ret_c;
+    safeCudaMalloc(&ret_c, maxData.size());
 
     aggregateMax<<<1, numMax>>>(
         array,
@@ -286,14 +286,10 @@ std::pair<array_info,float*> GaussMap::calcMax(){
         throw std::runtime_error(ss.str());
     }
 
-    ret = (float*)malloc(maxData.size());
-    checkCudaError(cudaMemcpy(ret, ret_c, maxData.size(), cudaMemcpyDeviceToHost));
-
-    safeCudaFree(ret_c);
     safeCudaFree(isMax_cuda);
     safeCudaFree(maxData_c);
 
-    return std::pair<array_info,float*>(maxData,ret);
+    return std::pair<array_info,float*>(maxData,ret_c);
 }
 
 //-----------------------------------------------------------------------------
@@ -306,22 +302,21 @@ void associateCameraKernel(
     const float* camData,
     const array_info *camInfo,
     float* results,
-    const array_info *resultInfo
+    const array_info *resultInfo,
+    float* spaceMap
 ){
     /*
     radarData: [row, col, class, pdfVal, vx, vy]
     cameraData: [x,y,class]
     */
-    extern __shared__ float spaceMap[];
     array_info spaceMapInfo;
-    
     spaceMapInfo.rows = radarInfo->rows;
     spaceMapInfo.cols = camInfo->rows;
     spaceMapInfo.elementSize = sizeof(float);
-
-    int row = threadIdx.x;
-    int col = threadIdx.y;
-
+    
+    int row = blockIdx.x;
+    int col = blockIdx.y;
+    
     float camX, camY;
     float radX, radY;
     camX = camData[array_index(col, 0, camInfo)];
@@ -331,39 +326,48 @@ void associateCameraKernel(
     radY = radarData[array_index(row, 1, radarInfo)];
 
     float distance = hypotf(camX-radX, camY-radY);
+    // printf("(%d,%d). rx: %.3f cx: %.3f ry: %.3f cy: %.3f d: %.3f\n",row,col, radX, camX, radY, camY, distance);
     spaceMap[array_index(row,col,&spaceMapInfo)] = distance;
-    printf("%f\n", distance);
-    __syncthreads();
+    // __syncthreads();
 }
 
 std::pair<array_info,float*> GaussMap::associateCamera(){
     // calculate the radar's maxima
     std::pair<array_info,float*> maxima = calcMax();
-    array_info *maximaInfo;
-    checkCudaError(cudaMalloc(&maximaInfo, sizeof(array_info)));
-    checkCudaError(cudaMemcpy(maximaInfo, &(maxima.first), cudaMemcpyHostToDevice));
+    array_info maximaInfo, *maximaInfo_c;
+    maximaInfo = maxima.first;
+
+    safeCudaMalloc(&maximaInfo_c, sizeof(array_info));
+    checkCudaError(cudaMemcpy(maximaInfo_c, &maximaInfo, sizeof(array_info), cudaMemcpyHostToDevice));
 
     array_info assocInfo, *assocInfo_c;
-    assocInfo.rows = maxima.first.rows + camInfo.rows;
+    assocInfo.rows = maximaInfo.rows + camInfo.rows;
     assocInfo.cols = 6; // [x,y,vx,vy,class,isValid]
     assocInfo.elementSize = sizeof(float);
     
     float* associated;
-    checkCudaError(cudaMalloc(&associated, assocInfo.size()));
+    safeCudaMalloc(&associated, assocInfo.size());
     checkCudaError(cudaMemset(associated, 0, assocInfo.size()));
-    checkCudaError(cudaMalloc(&assocInfo_c, sizeof(array_info)));
+    safeCudaMalloc(&assocInfo_c, sizeof(array_info));
     checkCudaError(cudaMemcpy(assocInfo_c, &assocInfo, sizeof(array_info), cudaMemcpyHostToDevice));
 
-    dim3 threadInfo(maxima.first.rows, camInfo.rows);
+    dim3 blockInfo(1,1);
+    dim3 threadInfo(maximaInfo.rows, camInfo.rows);
 
-    associateCameraKernel<<<1, threadInfo, radarInfo.rows*camInfo.rows*sizeof(float)>>>(
+    float* spaceTmp;
+    safeCudaMalloc(&spaceTmp, maximaInfo.rows * camInfo.rows * sizeof(float));
+
+    associateCameraKernel<<<threadInfo, blockInfo>>>(
         maxima.second,
-        maximaInfo,
+        maximaInfo_c,
         camData,
         camInfo_cuda,
         associated,
-        assocInfo_c
+        assocInfo_c,
+        spaceTmp
     );
+
+    // cudaFree(spaceTmp);
 
     cudaDeviceSynchronize();
     cudaError_t error = cudaGetLastError();
@@ -374,6 +378,18 @@ std::pair<array_info,float*> GaussMap::associateCamera(){
         throw std::runtime_error(ss.str());
     }
     
+    // float* tmp;
+    // tmp = (float*)malloc(sizeof(float) * radarInfo.rows * camInfo.rows);
+    // checkCudaError(cudaMemcpy(tmp,spaceTmp, sizeof(float) * maximaInfo.rows * camInfo.rows, cudaMemcpyDeviceToHost));
+
+    // for(size_t i =0; i < camInfo.rows; i++){
+    //     for(size_t j = 0; j < radarInfo.rows; j++){
+    //         printf("%03.2f ", tmp[camInfo.rows * i + j]);
+    //     }
+    //     putchar('\n');
+    // }
+    // free(tmp);
+    throw std::runtime_error("STOP!");
     return std::pair<array_info,float*>(assocInfo,associated);
 }
 

@@ -46,9 +46,12 @@ class GaussMapWrapper:
             start = time.time()
             self.map.addRadarData(radarPoints)
             radar = time.time()
-            maxima = self.map.findMax()
-            maxTime = time.time()
-            tqdm.write("radar: {:.5f}, maxima: {:.5f}, total: {:.5f}".format(radar-start, maxTime-radar, maxTime-start))
+            self.map.addCameraData(cameraPoints)
+            camTime = time.time()
+            maxima = self.map.associate()
+            assTime = time.time()
+            tqdm.write("radar: {:.5f}, camera: {:.5f}, associate: {:.5f}, total: {:.5f}".format(radar-start, camTime-radar, assTime-camTime, assTime-start))
+
 
             ## Handle the case where there are no points found in this frame
             if maxima.shape[0] == 0:
