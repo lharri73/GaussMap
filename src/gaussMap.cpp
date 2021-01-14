@@ -37,9 +37,9 @@ GaussMap::GaussMap(const std::string params){
     safeCudaMalloc(&mapRel_cuda, sizeof(struct Array_Relationship));
     safeCudaMalloc(&radarDistri_c, sizeof(distInfo_t));
     
-    checkCudaError(cudaMemcpy(mapInfo_cuda, &mapInfo, sizeof(struct Array_Info), cudaMemcpyHostToDevice));
-    checkCudaError(cudaMemcpy(mapRel_cuda, &mapRel, sizeof(struct Array_Relationship), cudaMemcpyHostToDevice));
-    checkCudaError(cudaMemcpy(radarDistri_c, radarDistri, sizeof(distInfo_t), cudaMemcpyHostToDevice));
+    safeCudaMemcpy2Device(mapInfo_cuda, &mapInfo, sizeof(struct Array_Info));
+    safeCudaMemcpy2Device(mapRel_cuda, &mapRel, sizeof(struct Array_Relationship));
+    safeCudaMemcpy2Device(radarDistri_c, radarDistri, sizeof(distInfo_t));
 
     // this is all done so we can check if it has been allocated later
     radarData = nullptr;

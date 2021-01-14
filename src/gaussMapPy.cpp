@@ -31,7 +31,7 @@ void GaussMap::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::ar
     // allocate and copy the array to the GPU so we can run a kernel on it
     safeCudaMalloc(&radarData, sizeof(RadarData_t) * radarPoints * radarFeatures);
 
-    checkCudaError(cudaMemcpy(radarData, data, sizeof(RadarData_t) * radarPoints * radarFeatures, cudaMemcpyHostToDevice));
+    safeCudaMemcpy2Device(radarData, data, sizeof(RadarData_t) * radarPoints * radarFeatures);
 
     calcRadarMap();     // setup for the CUDA kernel. in GPU code
 }
@@ -41,7 +41,7 @@ void GaussMap::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::ar
 py::array_t<mapType_t> GaussMap::asArray(){
     mapType_t* retArray = new mapType_t[mapInfo.cols * mapInfo.rows];
 
-    checkCudaError(cudaMemcpy(retArray, array, mapInfo.cols * mapInfo.rows * mapInfo.elementSize, cudaMemcpyDeviceToHost));
+    safeCudaMemcpy2Host(retArray, array, mapInfo.size());
 
     py::buffer_info a(
         retArray, 
@@ -67,9 +67,9 @@ void GaussMap::addCameraData(py::array_t<float, py::array::c_style | py::array::
     camInfo.elementSize = buf1.itemsize;
 
     safeCudaMalloc(&camData, camInfo.elementSize * camInfo.cols * camInfo.rows);
-    checkCudaError(cudaMemcpy(camData, data, camInfo.elementSize * camInfo.cols * camInfo.rows, cudaMemcpyHostToDevice));
+    safeCudaMemcpy2Device(camData, data, camInfo.elementSize * camInfo.cols * camInfo.rows);
 
-    checkCudaError(cudaMemcpy(camInfo_cuda, &camInfo, sizeof(array_info), cudaMemcpyHostToDevice));
+    safeCudaMemcpy2Device(camInfo_cuda, &camInfo, sizeof(array_info));
 
 }
 
