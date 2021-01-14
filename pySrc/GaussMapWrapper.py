@@ -59,11 +59,11 @@ class GaussMapWrapper:
                 self.map.reset()
                 self.results.add_boxes(frame['sample_token'], [])
                 continue
-
-            ## normalize the scores for this frame
-            scores = maxima[:,3]
-            # np.savetxt("scores.txt", scores)
-            scores = scores / np.max(scores)
+            
+            # ## normalize the scores for this frame
+            # scores = maxima[:,3]
+            # np.savetxt("maxima.txt", maxima)
+            # scores = scores / np.max(scores)
 
             s_record = self.nusc.get('sample', frame['sample_token'])
             sd_record = self.nusc.get('sample_data', s_record['data']['LIDAR_TOP'])
@@ -72,12 +72,12 @@ class GaussMapWrapper:
             boxes = []
             for i in range(min(maxima.shape[0], 499)):
                 box = DetectionBox(sample_token=frame['sample_token'],
-                                   translation=[maxima[i,1], maxima[i,0], 1],
+                                   translation=[maxima[i,0], maxima[i,1], 1],
                                    size=[1,1,1], 
                                    rotation=[1,0,0,0], 
                                    velocity=[0,0], 
-                                   detection_name=self.class_reverse[0],
-                                   detection_score=float(scores[i]))
+                                   detection_name=self.class_reverse[int(maxima[i,4])],
+                                   detection_score=1.0)
                 box = vehicle_to_global(box, pose_rec)
                 boxes.append(box)
 

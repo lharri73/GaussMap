@@ -41,6 +41,7 @@ class GaussMap{
         RadarData_t* radarData;     // set to nullptr until received
         array_info radarInfo, *radarInfo_cuda;
         radarId_t *radarIds;
+        void setRadarIds();
 
         float* camData;
         array_info camInfo, *camInfo_cuda;

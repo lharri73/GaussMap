@@ -24,7 +24,6 @@ Position indexDiff(size_t row, size_t col, const RadarData_t *radarData, size_t 
     
     float rPosx = radarData[array_index(radarPointIdx, 0, radarInfo)];
     float rPosy = radarData[array_index(radarPointIdx, 1, radarInfo)];
-    // printf("rpos %d x: %f, y: %f\n", threadIdx.x, rPosx, rPosy);
 
     Position difference(
         pos.x - rPosx,
@@ -83,7 +82,6 @@ void radarPointKernel(mapType_t* gaussMap,
             continue;
 
         float pdfVal = calcPdf(distributionInfo->stdDev, distributionInfo->mean, diff.radius);
-        // printf("pdf: %f\n", pdfVal);
         atomicAdd(&gaussMap[array_index(blockIdx.x,col,mapInfo)], pdfVal);
 
         un.radData.radarId = threadIdx.x;
@@ -168,6 +166,9 @@ float calcMean(size_t col,
         total += radarData[array_index(radars[i], col, radarInfo)];
         numPoints++;
     }
+    // divide by zero is bad. But apparently it's zero!
+    if(numPoints == 0)
+        return 0.0;
     
     return (total/numPoints);
 }
@@ -308,6 +309,7 @@ void associateCameraKernel(
     /*
     radarData: [row, col, class, pdfVal, vx, vy]
     cameraData: [x,y,class]
+    ret: [x,y,vx,vy,class,isValid]
     */
     array_info spaceMapInfo;
     spaceMapInfo.rows = radarInfo->rows;
@@ -315,23 +317,84 @@ void associateCameraKernel(
     spaceMapInfo.elementSize = sizeof(float);
     
     int row = blockIdx.x;
-    int col = blockIdx.y;
+    int col = threadIdx.y;
     
     float camX, camY;
     float radX, radY;
     camX = camData[array_index(col, 0, camInfo)];
     camY = camData[array_index(col, 1, camInfo)];
-
+    
     radX = radarData[array_index(row, 0, radarInfo)];
     radY = radarData[array_index(row, 1, radarInfo)];
-
+    
+    // calculate the pairwise distance for each camera,radar point
     float distance = hypotf(camX-radX, camY-radY);
-    // printf("(%d,%d). rx: %.3f cx: %.3f ry: %.3f cy: %.3f d: %.3f\n",row,col, radX, camX, radY, camY, distance);
     spaceMap[array_index(row,col,&spaceMapInfo)] = distance;
-    // __syncthreads();
+    __syncthreads();
+    
+    if(blockIdx.x == 0){
+        int resultRow = radarInfo->rows+col;
+        // we only need one because we need to find the max of the column vector
+        
+        // TODO: this will cause a segmentation fault if there are no radar points
+        float min = spaceMap[array_index(0, col, &spaceMapInfo)];
+        float cur;
+        int minIndex = -1;
+
+        // find the closest radar point
+        for(size_t i = 0; i < spaceMapInfo.rows; i++){
+            cur = spaceMap[array_index(i, col, &spaceMapInfo)];
+            if(cur < min){
+                cur = min;
+                minIndex = (int)i;
+            }
+        }
+
+        if(minIndex >= 0 && min <= 1.0)
+            spaceMap[array_index(minIndex, col, &spaceMapInfo)] = -1.0;
+            // a signal to join these two points
+        else{
+            results[array_index(resultRow, 0, resultInfo)] = camData[array_index(col, 0, camInfo)];     //x
+            results[array_index(resultRow, 1, resultInfo)] = camData[array_index(col, 1, camInfo)];     //y
+            results[array_index(resultRow, 2, resultInfo)] = 0;                                         //vx
+            results[array_index(resultRow, 3, resultInfo)] = 0;                                         //vy
+            results[array_index(resultRow, 4, resultInfo)] = camData[array_index(col, 2, camInfo)];     //class
+            results[array_index(resultRow, 5, resultInfo)] = 1;                                         //isValid
+        }
+    }
+
+    // block the other thread blocks and wait until the columns are processed
+    __syncthreads();
+
+    if(spaceMap[array_index(row, col, &spaceMapInfo)] < 0.0){
+        results[array_index(blockIdx.x, 0, resultInfo)] = radarData[array_index(row, 0, radarInfo)]; //x
+        results[array_index(blockIdx.x, 1, resultInfo)] = radarData[array_index(row, 1, radarInfo)]; //y
+        results[array_index(blockIdx.x, 2, resultInfo)] = radarData[array_index(row, 4, radarInfo)]; //vx
+        results[array_index(blockIdx.x, 3, resultInfo)] = radarData[array_index(row, 5, radarInfo)]; //vy
+        results[array_index(blockIdx.x, 4, resultInfo)] = camData[array_index(col, 2, camInfo)];     //class
+        results[array_index(blockIdx.x, 5, resultInfo)] = 1;                                         //isValid
+        return;
+    }
+
+    __syncthreads();
+
+    if(threadIdx.x == 0 && results[array_index(blockIdx.x, 5, resultInfo)] != 1.0){
+        results[array_index(blockIdx.x, 0, resultInfo)] = radarData[array_index(row, 0, radarInfo)]; //x
+        results[array_index(blockIdx.x, 1, resultInfo)] = radarData[array_index(row, 1, radarInfo)]; //y
+        results[array_index(blockIdx.x, 2, resultInfo)] = radarData[array_index(row, 4, radarInfo)]; //vx
+        results[array_index(blockIdx.x, 3, resultInfo)] = radarData[array_index(row, 5, radarInfo)]; //vy
+        results[array_index(blockIdx.x, 4, resultInfo)] = 0;                                         //class
+        results[array_index(blockIdx.x, 5, resultInfo)] = 1;                                         //isValid
+    }
+
 }
 
 std::pair<array_info,float*> GaussMap::associateCamera(){
+    /*
+    ret: [x,y,vx,vy,class]
+    */
+
+
     // calculate the radar's maxima
     std::pair<array_info,float*> maxima = calcMax();
     array_info maximaInfo, *maximaInfo_c;
@@ -348,16 +411,17 @@ std::pair<array_info,float*> GaussMap::associateCamera(){
     float* associated;
     safeCudaMalloc(&associated, assocInfo.size());
     checkCudaError(cudaMemset(associated, 0, assocInfo.size()));
+
     safeCudaMalloc(&assocInfo_c, sizeof(array_info));
     checkCudaError(cudaMemcpy(assocInfo_c, &assocInfo, sizeof(array_info), cudaMemcpyHostToDevice));
 
-    dim3 blockInfo(1,1);
-    dim3 threadInfo(maximaInfo.rows, camInfo.rows);
+    dim3 blockInfo(maximaInfo.rows,1);
+    dim3 threadInfo(1, camInfo.rows);
 
     float* spaceTmp;
     safeCudaMalloc(&spaceTmp, maximaInfo.rows * camInfo.rows * sizeof(float));
 
-    associateCameraKernel<<<threadInfo, blockInfo>>>(
+    associateCameraKernel<<<blockInfo, threadInfo>>>(
         maxima.second,
         maximaInfo_c,
         camData,
@@ -378,19 +442,56 @@ std::pair<array_info,float*> GaussMap::associateCamera(){
         throw std::runtime_error(ss.str());
     }
     
-    // float* tmp;
-    // tmp = (float*)malloc(sizeof(float) * radarInfo.rows * camInfo.rows);
-    // checkCudaError(cudaMemcpy(tmp,spaceTmp, sizeof(float) * maximaInfo.rows * camInfo.rows, cudaMemcpyDeviceToHost));
 
-    // for(size_t i =0; i < camInfo.rows; i++){
-    //     for(size_t j = 0; j < radarInfo.rows; j++){
-    //         printf("%03.2f ", tmp[camInfo.rows * i + j]);
-    //     }
-    //     putchar('\n');
-    // }
-    // free(tmp);
-    throw std::runtime_error("STOP!");
-    return std::pair<array_info,float*>(assocInfo,associated);
+    safeCudaFree(spaceTmp);
+
+    // move the results back to host memory
+    float* ret;
+    ret = (float*)malloc(assocInfo.size());
+    safeCudaMemcpy2Host(ret, associated, assocInfo.size());
+    safeCudaFree(associated);
+
+    // keep only the valid rows
+    std::vector<float> retVec;
+    retVec.reserve(assocInfo.rows * (assocInfo.cols-1)); // don't put isValid in the return vector
+    for(size_t i = 0; i < assocInfo.rows; i++){
+        if(ret[i*assocInfo.cols + 5] == 0.0){
+            continue;
+        }else{
+            for(size_t j = 0; j < 5; j++)
+                retVec.push_back(ret[i*assocInfo.cols + j]);
+        }
+    }
+
+    // save the data from the vector in a contiguous array
+    memset(ret, 0, assocInfo.size());
+    memcpy(ret, retVec.data(), sizeof(float) * retVec.size());
+    assocInfo.rows = retVec.size() / (assocInfo.cols-1);
+    assocInfo.cols = assocInfo.cols-1;  // not isValid
+
+    return std::pair<array_info,float*>(assocInfo,ret);
+}
+
+__global__
+void setRadarIdsKernel(radarId_t *array){
+    array[blockIdx.x].radarId = -1;
+    array[blockIdx.x].garbage = 0;
+    array[blockIdx.x].probability = 0.0;
+}
+
+void GaussMap::setRadarIds(){
+    setRadarIdsKernel<<<mapInfo.rows*mapInfo.cols,1>>>(
+        radarIds
+    );
+
+    cudaDeviceSynchronize();
+    cudaError_t error = cudaGetLastError();
+    if(error != cudaSuccess){
+        std::stringstream ss;
+        ss << "failed to set radar ids to -1\n";
+        ss << cudaGetErrorString(error);
+        throw std::runtime_error(ss.str());
+    }
 }
 
 //-----------------------------------------------------------------------------

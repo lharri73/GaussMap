@@ -65,7 +65,6 @@ void GaussMap::addCameraData(py::array_t<float, py::array::c_style | py::array::
     camInfo.cols = buf1.shape[1];
     camInfo.rows = buf1.shape[0];
     camInfo.elementSize = buf1.itemsize;
-    printf("cols: %lu rows: %lu\n", camInfo.cols, camInfo.rows);
 
     safeCudaMalloc(&camData, camInfo.elementSize * camInfo.cols * camInfo.rows);
     checkCudaError(cudaMemcpy(camData, data, camInfo.elementSize * camInfo.cols * camInfo.rows, cudaMemcpyHostToDevice));
@@ -75,6 +74,9 @@ void GaussMap::addCameraData(py::array_t<float, py::array::c_style | py::array::
 }
 
 py::array_t<float> GaussMap::associate(){
+
+    // return: [x,y,vx,vy,class]
+
     if(radarData == nullptr || camData == nullptr)
         throw std::runtime_error("Radar and Camera data must be added before association!");
 
@@ -82,14 +84,12 @@ py::array_t<float> GaussMap::associate(){
 
     std::pair<array_info,float*> associated = associateCamera();
 
-    int rows = associated.first.rows;
-
     py::buffer_info ret(
         associated.second,
         sizeof(float),
         py::format_descriptor<float>::format(),
         2,
-        {rows, (int)associated.first.cols},
+        {(int)associated.first.rows, (int)associated.first.cols},
         {sizeof(float) * associated.first.cols, sizeof(float) * 1}
     );
     return py::array_t<float>(ret);

@@ -31,6 +31,7 @@ typedef struct DistributionInfo{
 } distInfo_t;
 
 typedef struct RadarIds{
-    int32_t radarId;       // uint32 so it's aligned to double word
+    int16_t radarId;       // uint32 so it's aligned to double word
+    int16_t garbage;
     float probability;     // value of pdf
 } radarId_t; 
