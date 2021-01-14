@@ -29,3 +29,6 @@ __pycache__
 ## HUGE results files
 results/*
 !results/.keep
+
+*.txt
+!requirements.txt
