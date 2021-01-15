@@ -8,6 +8,7 @@
 #include <math_constants.h>     // CUDART_PI_F
 #include "gaussMap.cuh"
 #include <iostream>
+#include <chrono>
 
 __device__ __forceinline__
 size_t array_index(size_t row, size_t col, const array_info *info){
@@ -336,7 +337,6 @@ void associateCameraKernel(
         int resultRow = radarInfo->rows+col;
         // we only need one because we need to find the max of the column vector
         
-        // TODO: this will cause a segmentation fault if there are no radar points
         float min = spaceMap[array_index(0, col, &spaceMapInfo)];
         float cur;
         int minIndex = -1;
@@ -389,14 +389,45 @@ void associateCameraKernel(
 
 }
 
+__global__
+void singleElementResult(const float* radarData,
+                         const array_info *radarInfo,
+                         const float* camData,
+                         const array_info *camInfo,
+                         float* results,
+                         const array_info *resultInfo)
+{
+    const float *array;
+    const array_info *info;
+    if(camInfo->rows == 0){
+        array = camData;
+        info = camInfo;
+    }
+    else{
+        array = radarData;
+        info = radarInfo;
+    }
+
+    results[array_index(blockIdx.x, 0, resultInfo)] = array[array_index(blockIdx.x, 0, info)];
+    results[array_index(blockIdx.x, 1, resultInfo)] = array[array_index(blockIdx.x, 1, info)];
+    results[array_index(blockIdx.x, 2, resultInfo)] = camInfo->rows == 0 ? array[array_index(blockIdx.x, 4, info)] : 0.0;
+    results[array_index(blockIdx.x, 3, resultInfo)] = camInfo->rows == 0 ? array[array_index(blockIdx.x, 5, info)] : 0.0;
+    results[array_index(blockIdx.x, 4, resultInfo)] = camInfo->rows == 0 ? 0.0 : array[array_index(blockIdx.x, 2, info)];
+}
+
 std::pair<array_info,float*> GaussMap::associateCamera(){
     /*
     ret: [x,y,vx,vy,class]
     */
 
-
     // calculate the radar's maxima
+    auto start = std::chrono::high_resolution_clock::now();
     std::pair<array_info,float*> maxima = calcMax();
+    auto stop = std::chrono::high_resolution_clock::now();
+
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start); 
+    std::cout << duration.count() << '\n';
+
     array_info maximaInfo, *maximaInfo_c;
     maximaInfo = maxima.first;
 
@@ -404,72 +435,118 @@ std::pair<array_info,float*> GaussMap::associateCamera(){
     safeCudaMemcpy2Device(maximaInfo_c, &maximaInfo, sizeof(array_info));
 
     array_info assocInfo, *assocInfo_c;
-    assocInfo.rows = maximaInfo.rows + camInfo.rows;
     assocInfo.cols = 6; // [x,y,vx,vy,class,isValid]
     assocInfo.elementSize = sizeof(float);
     
-    float* associated;
-    safeCudaMalloc(&associated, assocInfo.size());
-    checkCudaError(cudaMemset(associated, 0, assocInfo.size()));
+    // unlikely to happen, but prevents a segmentation fault
+    if((maximaInfo.rows == 0) != (camInfo.rows == 0)){  // XOR
+        // handle the case when there are no radar points ^ no cam points
+        assocInfo.rows = maximaInfo.rows + camInfo.rows;
+        assocInfo.cols -=1;     // we don't need the valid flag since we know all are valid
 
-    safeCudaMalloc(&assocInfo_c, sizeof(array_info));
-    safeCudaMemcpy2Device(assocInfo_c, &assocInfo, sizeof(array_info));
+        float* associated;
+        safeCudaMalloc(&associated, assocInfo.size());
+        safeCudaMalloc(&assocInfo_c, sizeof(array_info));
+        safeCudaMemcpy2Device(assocInfo_c, &assocInfo, sizeof(array_info));
+        
+        dim3 blockInfo(maximaInfo.rows + camInfo.rows,1);
+        dim3 threadInfo(1,1);
 
-    dim3 blockInfo(maximaInfo.rows,1);
-    dim3 threadInfo(1, camInfo.rows);
+        singleElementResult<<<blockInfo,threadInfo>>>(
+            maxima.second,
+            maximaInfo_c,
+            camData,
+            camInfo_cuda,
+            associated,
+            assocInfo_c
+        );
 
-    float* spaceTmp;
-    safeCudaMalloc(&spaceTmp, maximaInfo.rows * camInfo.rows * sizeof(float));
+        cudaDeviceSynchronize();
+        cudaError_t error = cudaGetLastError();
+        if(error != cudaSuccess){
+            std::stringstream ss;
+            ss << "singleElementResult kernel launch failed\n";
+            ss << cudaGetErrorString(error);
+            throw std::runtime_error(ss.str());
+        } 
 
-    associateCameraKernel<<<blockInfo, threadInfo>>>(
-        maxima.second,
-        maximaInfo_c,
-        camData,
-        camInfo_cuda,
-        associated,
-        assocInfo_c,
-        spaceTmp
-    );
+        // move the results back to host memory
+        float* ret;
+        ret = (float*)malloc(assocInfo.size());
+        safeCudaMemcpy2Host(ret, associated, assocInfo.size());
+        safeCudaFree(associated);
 
-    // cudaFree(spaceTmp);
+        return std::pair<array_info,float*> (assocInfo,ret);
 
-    cudaDeviceSynchronize();
-    cudaError_t error = cudaGetLastError();
-    if(error != cudaSuccess){
-        std::stringstream ss;
-        ss << "associateCameraKernel launch failed\n";
-        ss << cudaGetErrorString(error);
-        throw std::runtime_error(ss.str());
-    }
+    }else if(maximaInfo.rows == 0 && camInfo.rows == 0){
+        // handle the case when there are no camera or radar points
+        assocInfo.rows = 0;
+        assocInfo.cols -=1;
+        
+        float* earlyRet = (float*)malloc(0);
+        return std::pair<array_info,float*>(assocInfo,earlyRet);
+    }else{
+        // normal situation. there are camera and radar points
+        assocInfo.rows = maximaInfo.rows + camInfo.rows;
+
+        float* associated;
+        safeCudaMalloc(&associated, assocInfo.size());
+        checkCudaError(cudaMemset(associated, 0, assocInfo.size()));
+        safeCudaMalloc(&assocInfo_c, sizeof(array_info));
+        safeCudaMemcpy2Device(assocInfo_c, &assocInfo, sizeof(array_info));
     
-
-    safeCudaFree(spaceTmp);
-
-    // move the results back to host memory
-    float* ret;
-    ret = (float*)malloc(assocInfo.size());
-    safeCudaMemcpy2Host(ret, associated, assocInfo.size());
-    safeCudaFree(associated);
-
-    // keep only the valid rows
-    std::vector<float> retVec;
-    retVec.reserve(assocInfo.rows * (assocInfo.cols-1)); // don't put isValid in the return vector
-    for(size_t i = 0; i < assocInfo.rows; i++){
-        if(ret[i*assocInfo.cols + 5] == 0.0){
-            continue;
-        }else{
-            for(size_t j = 0; j < 5; j++)
-                retVec.push_back(ret[i*assocInfo.cols + j]);
+        float* spaceTmp;
+        safeCudaMalloc(&spaceTmp, maximaInfo.rows * camInfo.rows * sizeof(float));
+        
+        dim3 blockInfo(maximaInfo.rows,1);
+        dim3 threadInfo(1, camInfo.rows);
+        associateCameraKernel<<<blockInfo, threadInfo>>>(
+            maxima.second,
+            maximaInfo_c,
+            camData,
+            camInfo_cuda,
+            associated,
+            assocInfo_c,
+            spaceTmp
+        );
+      
+        cudaDeviceSynchronize();
+        cudaError_t error = cudaGetLastError();
+        if(error != cudaSuccess){
+            std::stringstream ss;
+            ss << "associateCameraKernel launch failed\n";
+            ss << cudaGetErrorString(error);
+            throw std::runtime_error(ss.str());
+        }    
+    
+        safeCudaFree(spaceTmp);
+    
+        // move the results back to host memory
+        float* ret;
+        ret = (float*)malloc(assocInfo.size());
+        safeCudaMemcpy2Host(ret, associated, assocInfo.size());
+        safeCudaFree(associated);
+    
+        // keep only the valid rows
+        std::vector<float> retVec;
+        retVec.reserve(assocInfo.rows * (assocInfo.cols-1)); // don't put isValid in the return vector
+        for(size_t i = 0; i < assocInfo.rows; i++){
+            if(ret[i*assocInfo.cols + 5] == 0.0){
+                continue;
+            }else{
+                for(size_t j = 0; j < 5; j++)
+                    retVec.push_back(ret[i*assocInfo.cols + j]);
+            }
         }
+    
+        // save the data from the vector in a contiguous array
+        memset(ret, 0, assocInfo.size());
+        memcpy(ret, retVec.data(), sizeof(float) * retVec.size());
+        assocInfo.rows = retVec.size() / (assocInfo.cols-1);
+        assocInfo.cols = assocInfo.cols-1;  // not isValid
+    
+        return std::pair<array_info,float*>(assocInfo,ret);
     }
-
-    // save the data from the vector in a contiguous array
-    memset(ret, 0, assocInfo.size());
-    memcpy(ret, retVec.data(), sizeof(float) * retVec.size());
-    assocInfo.rows = retVec.size() / (assocInfo.cols-1);
-    assocInfo.cols = assocInfo.cols-1;  // not isValid
-
-    return std::pair<array_info,float*>(assocInfo,ret);
 }
 
 __global__

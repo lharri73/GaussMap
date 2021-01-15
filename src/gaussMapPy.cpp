@@ -82,8 +82,6 @@ py::array_t<float> GaussMap::associate(){
     if(radarData == nullptr || camData == nullptr)
         throw std::runtime_error("Radar and Camera data must be added before association!");
 
-    // TODO: if len(radarData) == 0 || len(camData) == 0, what then?
-
     std::pair<array_info,float*> associated = associateCamera();
 
     py::buffer_info ret(
