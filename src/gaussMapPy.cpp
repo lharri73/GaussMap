@@ -8,6 +8,8 @@ Every function not in this file should not require python
 // this template py:array_t forces the numpy array to be passed without any strides
 // and favors a c-style array
 void GaussMap::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::array::forcecast> array){
+    if(radarData != nullptr)
+        throw std::runtime_error("addRadarData can only be called once after calling reset()");
     size_t radarPoints, radarFeatures;
     
     // get information about the numpy array from python

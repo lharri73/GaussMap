@@ -19,7 +19,7 @@ class GaussMap{
         GaussMap(const std::string params);
         ~GaussMap();        
         
-        // used to add radar data to the map. (can only be called once) TODO: make sure only called once
+        // used to add radar data to the map. (can only be called once)
         // takes a contiguous, 2 dimensional numpy array
         void addRadarData(py::array_t<RadarData_t, py::array::c_style | py::array::forcecast> array);
 
