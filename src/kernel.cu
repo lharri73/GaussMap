@@ -389,6 +389,10 @@ void associateCameraKernel(
 
 }
 
+
+// Simple kernel that transforms the camera/radar input array to the result
+// format. This is used when there are no camera or radar points for the
+// association kernel to associate. 
 __global__
 void singleElementResult(const float* radarData,
                          const array_info *radarInfo,
@@ -415,18 +419,14 @@ void singleElementResult(const float* radarData,
     results[array_index(blockIdx.x, 4, resultInfo)] = camInfo->rows == 0 ? 0.0 : array[array_index(blockIdx.x, 2, info)];
 }
 
+
 std::pair<array_info,float*> GaussMap::associateCamera(){
     /*
     ret: [x,y,vx,vy,class]
     */
 
     // calculate the radar's maxima
-    auto start = std::chrono::high_resolution_clock::now();
     std::pair<array_info,float*> maxima = calcMax();
-    auto stop = std::chrono::high_resolution_clock::now();
-
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start); 
-    std::cout << duration.count() << '\n';
 
     array_info maximaInfo, *maximaInfo_c;
     maximaInfo = maxima.first;
@@ -549,6 +549,10 @@ std::pair<array_info,float*> GaussMap::associateCamera(){
     }
 }
 
+/* Functions like memset, but since cudaMemset takes an integer, 
+ * this is necessary. This assigns an unsigned long long int to the
+ * memory address of every element in the array. Since it's a kernel,
+ * each thread does one operation */
 __global__
 void setRadarIdsKernel(radarId_t *array){
     array[blockIdx.x].radarId = -1;
