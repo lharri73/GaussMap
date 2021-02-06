@@ -17,18 +17,11 @@ NUSCENES:
 
 ## sensors to include in the databse. All sensors not in this list are ignored.
     SENSORS: [
-      "CAM_FRONT_LEFT",
-      "CAM_FRONT_RIGHT",
-      "CAM_FRONT",
-      "CAM_BACK_LEFT",
-      "CAM_BACK_RIGHT",
-      "CAM_BACK",
       "RADAR_FRONT_LEFT",
       "RADAR_FRONT_RIGHT",
       "RADAR_FRONT",
       "RADAR_BACK_LEFT",
       "RADAR_BACK_RIGHT",
-      "LIDAR_TOP",
     ]
 
 ## categories to include in database and their corresponding name mapping.

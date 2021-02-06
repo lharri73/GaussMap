@@ -44,7 +44,6 @@ GaussMap::GaussMap(const std::string params){
     // this is all done so we can check if it has been allocated later
     radarData = nullptr;
     camData = nullptr;
-    returned = nullptr;
     reset();
 }
 

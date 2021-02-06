@@ -255,6 +255,9 @@ std::pair<array_info,float*> GaussMap::calcMax(){
         }
     }
 
+    free(isMax);
+    free(arrayTmp);
+
     // allocate the maxima locations in CUDA
     int *maximaLocs_c;
     safeCudaMalloc(&maximaLocs_c, maximaLocs.size() * sizeof(int));
