@@ -43,11 +43,17 @@ __global__ void calcMaxKernel(uint8_t *isMax, const float* array, const array_in
 
 __device__ float calcMean(size_t col, const int16_t* radars, const RadarData_t *radarData, const array_info *radarInfo);
 
-__global__ void aggregateMax(const mapType_t *array, const array_info *mapInfo,
-        const array_rel *mapRel, const maxVal_t *isMax, 
-        float* ret, const radarId_t *radarIds,
-        const array_info* maxInfo, float minCutoff,
-        const RadarData_t *radarData, const array_info *radarInfo);
+__global__ void aggregateMax(
+        const mapType_t *array, 
+        const array_info *mapInfo,
+        const array_rel *mapRel,
+        const maxVal_t *isMax,
+        float* ret,
+        const array_info* maxInfo,
+        const RadarData_t *radarData, 
+        const array_info *radarInfo,
+        const int *maximaLocs,
+        const array_info *locsInfo);
 
 __global__ void associateCameraKernel(const RadarData_t *radarData, const array_info *radarInfo,
         const float* camData, const array_info *camInfo,

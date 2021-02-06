@@ -41,7 +41,11 @@ class GaussMapWrapper:
             radarPoints = radarFrame['pointcloud'].points.T
             cameraPoints = np.array(self.centerTrack[frame['sample_token']])
 
-
+            if radarPoints.shape[0] == 0 or cameraPoints.shape[0] == 0:
+                tqdm.write("No radar or camera points for token: {}".format(frame['sample_token']))
+                self.map.reset()
+                self.results.add_boxes(frame['sample_token'], [])
+                continue
             ## create the heatmap
             start = time.time()
             self.map.addRadarData(radarPoints)
@@ -53,12 +57,12 @@ class GaussMapWrapper:
             tqdm.write("radar: {:.5f}, camera: {:.5f}, associate: {:.5f}, total: {:.5f}".format(radar-start, camTime-radar, assTime-camTime, assTime-start))
 
 
-            ## Handle the case where there are no points found in this frame
-            if maxima.shape[0] == 0:
-                tqdm.write("No maxima for token: {}".format(frame['sample_token']))
-                self.map.reset()
-                self.results.add_boxes(frame['sample_token'], [])
-                continue
+            # ## Handle the case where there are no points found in this frame
+            # if maxima.shape[0] == 0:
+            #     tqdm.write("No maxima for token: {}".format(frame['sample_token']))
+            #     self.map.reset()
+            #     self.results.add_boxes(frame['sample_token'], [])
+            #     continue
             
             # ## normalize the scores for this frame
             # scores = maxima[:,3]
@@ -69,19 +73,19 @@ class GaussMapWrapper:
             sd_record = self.nusc.get('sample_data', s_record['data']['LIDAR_TOP'])
             pose_rec = self.nusc.get('ego_pose', sd_record['ego_pose_token'])
 
-            boxes = []
-            for i in range(min(maxima.shape[0], 499)):
-                box = DetectionBox(sample_token=frame['sample_token'],
-                                   translation=[maxima[i,0], maxima[i,1], 1],
-                                   size=[1,1,1], 
-                                   rotation=[1,0,0,0], 
-                                   velocity=[0,0], 
-                                   detection_name=self.class_reverse[int(maxima[i,4])],
-                                   detection_score=1.0)
-                box = vehicle_to_global(box, pose_rec)
-                boxes.append(box)
+            # boxes = []
+            # for i in range(min(maxima.shape[0], 499)):
+            #     box = DetectionBox(sample_token=frame['sample_token'],
+            #                        translation=[maxima[i,0], maxima[i,1], 1],
+            #                        size=[1,1,1], 
+            #                        rotation=[1,0,0,0], 
+            #                        velocity=[0,0], 
+            #                        detection_name=self.class_reverse[int(maxima[i,4])],
+            #                        detection_score=1.0)
+            #     box = vehicle_to_global(box, pose_rec)
+            #     boxes.append(box)
 
-            self.results.add_boxes(frame['sample_token'], boxes)
+            # self.results.add_boxes(frame['sample_token'], boxes)
             self.map.reset()
         
         self.end = time.time()
