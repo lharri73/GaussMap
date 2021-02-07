@@ -264,7 +264,7 @@ std::pair<array_info,float*> GaussMap::calcMax(){
     safeCudaMemcpy2Device(maximaLocs_c, (int*)maximaLocs.data(), maximaLocs.size() * sizeof(uint32_t));
     array_info maximaLocs_info;
     maximaLocs_info.cols = 2;
-    maximaLocs_info.rows = maximaLocs.size() / 2;
+    maximaLocs_info.rows = numMax;
     maximaLocs_info.elementSize = sizeof(int);
 
     array_info *maximaloc_nfo_c;
