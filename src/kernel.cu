@@ -198,8 +198,8 @@ void aggregateMax(const mapType_t *array,
     col = maximaLocs[array_index(threadIdx.x, 1, locsInfo)];
     maxVal_t tmp = isMax[row * mapInfo->cols + col];
 
-    ret[array_index(threadIdx.x, 0, maxInfo)] = ((float)(row - mapInfo->rows/2.0) * -1.0) / mapRel->res;
-    ret[array_index(threadIdx.x, 1, maxInfo)] = (col - mapInfo->cols/2.0) / mapRel->res;
+    ret[array_index(threadIdx.x, 1, maxInfo)] = ((float)(row - mapInfo->rows/2.0) * -1.0) / mapRel->res;
+    ret[array_index(threadIdx.x, 0, maxInfo)] = (col - mapInfo->cols/2.0) / mapRel->res;
     ret[array_index(threadIdx.x, 2, maxInfo)] = radarData[array_index(tmp.radars[49/2],3, radarInfo)];
     ret[array_index(threadIdx.x, 3, maxInfo)] = array[row * mapInfo->cols + col];
     ret[array_index(threadIdx.x, 4, maxInfo)] = calcMean(8, tmp.radars, radarData, radarInfo);
