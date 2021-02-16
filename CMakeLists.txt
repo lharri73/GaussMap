@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.17 FATAL_ERROR)
 project(gaussMap LANGUAGES CXX CUDA)
 
 find_package(CUDAToolkit)

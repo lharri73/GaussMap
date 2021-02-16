@@ -10,7 +10,10 @@ Installation is simplified with python.
 Simply run `python setup.py install` and dependencies will be installed and configured. 
 
 ## Getting Started
-1. Follow the install steps above to setup the python library.
+1. Run the following to install the python library
+    ```bash
+    python setup.py install
+    ```
 
 1. Run CenterTrack on all splits of the nuscenes dataset. 
 
