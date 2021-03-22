@@ -13,17 +13,17 @@ void calcMaxKernel(maxVal_t *isMax,
     */
     int col = threadIdx.x;
     int row = blockIdx.x;
+    size_t iterator = 0;
+
     if(row == 0 || row > mapInfo->rows) return;
     if(col == 0 || col > mapInfo->cols) return;
     
     float curVal = array[array_index(row,col, mapInfo)];
-    if(curVal == 0) return; // not a max if it's zero
-
+    
     maxVal_t *toInsert;
     toInsert = &isMax[array_index(row,col,mapInfo)];
-    // for(size_t i = 0; i < )
+    if(curVal == 0) goto exit; // not a max if it's zero
 
-    size_t iterator = 0;
     for(int i = -windowSize; i <= windowSize; i++){
         for(int j = -windowSize; j <= windowSize; j++){
             if(row+i > mapInfo->rows || col+j > mapInfo->cols) {
@@ -33,8 +33,7 @@ void calcMaxKernel(maxVal_t *isMax,
             
             if(array[array_index(row+i, col+j, mapInfo)] > curVal){
                 toInsert->isMax = 0;
-                for(;iterator < searchSize; iterator++)
-                    toInsert->radars[iterator] = -1;
+                goto exit;
                 return;
             }
             
@@ -43,8 +42,12 @@ void calcMaxKernel(maxVal_t *isMax,
         }
     }
 
+    
     toInsert->isMax = 1;
     toInsert->classVal = 0;
+exit:
+    for(;iterator < searchSize; iterator++)
+        toInsert->radars[iterator] = -1;
 }
 
 __global__ 
@@ -62,16 +65,16 @@ void aggregateMax(const mapType_t *array,
     // creates an array with the return information in the form of:
     // [row, col, pdfVal, vx, vy, targetId]
     int row,col;
-    row = maximaLocs[array_index(threadIdx.x, 0, locsInfo, __LINE__)];
-    col = maximaLocs[array_index(threadIdx.x, 1, locsInfo, __LINE__)];
+    row = maximaLocs[array_index(threadIdx.x, 0, locsInfo)];
+    col = maximaLocs[array_index(threadIdx.x, 1, locsInfo)];
     
     maxVal_t tmp = isMax[row * mapInfo->cols + col];    
 
-    ret[array_index(threadIdx.x, 0, maxInfo,__LINE__)] = (col - mapInfo->cols/2.0) / mapRel->res;
-    ret[array_index(threadIdx.x, 1, maxInfo,__LINE__)] = -(row - mapInfo->rows/2.0) / mapRel->res;
-    ret[array_index(threadIdx.x, 2, maxInfo,__LINE__)] = array[array_index(row, col, mapInfo,__LINE__)];
-    ret[array_index(threadIdx.x, 3, maxInfo,__LINE__)] = calcMean(2, tmp.radars, radarData, radarInfo);
-    ret[array_index(threadIdx.x, 4, maxInfo,__LINE__)] = calcMean(3, tmp.radars, radarData, radarInfo);
+    ret[array_index(threadIdx.x, 0, maxInfo)] = (col - mapInfo->cols/2.0) / mapRel->res;
+    ret[array_index(threadIdx.x, 1, maxInfo)] = -(row - mapInfo->rows/2.0) / mapRel->res;
+    ret[array_index(threadIdx.x, 2, maxInfo)] = array[array_index(row, col, mapInfo)];
+    ret[array_index(threadIdx.x, 3, maxInfo)] = calcMean(2, tmp.radars, radarData, radarInfo);
+    ret[array_index(threadIdx.x, 4, maxInfo)] = calcMean(3, tmp.radars, radarData, radarInfo);
 
     // attach the target ID to the maxima.
     // we assume there is only one target for each maxima detection
@@ -79,12 +82,12 @@ void aggregateMax(const mapType_t *array,
     int tmpId;
     for(size_t i = 0; i < searchSize; i++){
         if(tmp.radars[i] == -1) continue;
-        tmpId = radarData[array_index(tmp.radars[i], 5, radarInfo,__LINE__)];
+        tmpId = radarData[array_index(tmp.radars[i], 5, radarInfo)];
         if(tmpId == -1) continue;
 
         targetId = tmpId;
     }
-    ret[array_index(threadIdx.x, 5, maxInfo,__LINE__)] = targetId;
+    ret[array_index(threadIdx.x, 5, maxInfo)] = targetId;
 }
 
 __device__
@@ -97,10 +100,9 @@ float calcMean(size_t col,
     size_t numPoints = 0;
     for(size_t i = 0; i < searchSize; i++){
         if(radars[i] == -1) continue;
-
         CUDA_ASSERT_LT_E(radars[i], radarInfo->rows, "Radar number larger than number of rows");
 
-        total += radarData[array_index(radars[i], col, radarInfo, __LINE__)];
+        total += radarData[array_index(radars[i], col, radarInfo)];
         numPoints++;
     }
 

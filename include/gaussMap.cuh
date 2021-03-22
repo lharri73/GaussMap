@@ -10,7 +10,9 @@
 #define CUDA_ASSERT_POS_E(var, error) error_check(var >= 0.0f, __FILE__, __LINE__, error, var);
 #define CUDA_ASSERT_GT(var1, var2, error) error_check(var1 >= var2, __FILE__, __LINE__, error, var1, var2);
 #define CUDA_ASSERT_LT_E(var1, var2, error) error_check(var1 <= var2, __FILE__, __LINE__, error, var1, var2);
-#define CUDA_ASSERT_GT_LINE(var1, var2, error, line) error_check(var1 >= var2, __FILE__, line, error, var1, var2, true);
+#define CUDA_ASSERT_GT_LINE(var1, var2, error, line,file) error_check(var1 >= var2, file, line, error, var1, var2, true);
+
+#define array_index(row,col,info) array_index_macro(row,col,info,__LINE__,__FILE__)
 
 __device__ 
 __forceinline__
@@ -19,22 +21,17 @@ void error_check(bool condition, const char* file, int line, const char* error, 
         if(!debug)
             printf("CUDA ERROR: %s\n\tGot %f (%f)\n", error, var, var2);
         else
-            printf("CUDA ERROR at %s:%d :%s\n\tGot %f (%f)\n", file, line, error, var, var2);
+            printf("CUDA ERROR at %s:%d:\n\t%s\n\tGot %f (%f)\n", file, line, error, var, var2);
         asm("trap;");   // inline ptx assembly to cause an illegal instruction
     }
 }
 
 // provides index of array given row, col, and array_info
 __device__ __forceinline__
-size_t array_index(size_t row, size_t col, const array_info *info, int line=0){
-    if(line == 0){
-        CUDA_ASSERT_GT(info->rows, row, "Index out of bounds: info->rows !> row");
-        CUDA_ASSERT_GT(info->cols, col, "Index out of bounds: info->cols !> col");
-    }else{
-        CUDA_ASSERT_GT_LINE(info->rows, row, "Index out of bounds: info->rows !> row (filename wrong)",line);
-        CUDA_ASSERT_GT_LINE(info->cols, col, "Index out of bounds: info->cols !> col (filename wrong)",line);
-    }
+size_t array_index_macro(size_t row, size_t col, const array_info *info, int line, const char* file){
     // helper function to find the array index
+    CUDA_ASSERT_GT_LINE(info->rows, row, "Index out of bounds: (info->rows <= row)",line, file);
+    CUDA_ASSERT_GT_LINE(info->cols, col, "Index out of bounds: (info->cols <= col)",line, file);
     return (row * info->cols) + col;
 }
 

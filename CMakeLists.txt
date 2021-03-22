@@ -38,7 +38,7 @@ target_link_libraries(gaussMap PRIVATE
     ${YAML_CPP_LIBRARIES}
 )
 
-set_property(TARGET gaussMap PROPERTY CUDA_ARCHITECTURES 60 61 62 70 72)
+set_property(TARGET gaussMap PROPERTY CUDA_ARCHITECTURES 61 62 70 72)
 set_property(TARGET gaussMap PROPERTY CXX_STANDARD 11)
 set_property(TARGET gaussMap PROPERTY CUDA_SEPARABLE_COMPILATION ON)
 

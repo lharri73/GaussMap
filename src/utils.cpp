@@ -9,13 +9,14 @@ void checkCudaError(cudaError_t error){
     }
 }
 
-void safeCudaFree(void *ptr){
+void safeCudaFree_macro(void *ptr, int line, const char* file){
     if(ptr != nullptr){
         cudaError_t error = cudaFree(ptr);
         if(error != cudaSuccess){
             std::stringstream ss;
-            ss << "gaussMap:: Internal error during cudaFree\n";
+            ss << "gaussMap:: Internal error during cudaFree at " << file << ":" << line << '\n';
             ss << "\tCUDA: " << error << '\n';
+            throw std::runtime_error(ss.str());
         }
     }
 }

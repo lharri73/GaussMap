@@ -9,7 +9,7 @@ void GaussMap::calcRadarMap(){
     if(radarInfo.cols != 6)
         throw std::runtime_error("size of radar data is incorrect. Should be Nx6");
 
-        safeCudaMemcpy2Device(radarInfo_cuda, &radarInfo, sizeof(array_info));
+    safeCudaMemcpy2Device(radarInfo_cuda, &radarInfo, sizeof(array_info));
 
     if(radarInfo.rows == 0)
         return;

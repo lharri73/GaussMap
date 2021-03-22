@@ -46,6 +46,15 @@ class GaussMapWrapper:
                 self.map.reset()
                 self.results.add_boxes(frame['sample_token'], [])
                 continue
+
+            ## rearange to be similar to the bosch radars
+            mask = [0,1,8,9,15,4]
+            radarPoints = radarPoints[:,mask]
+
+            ## use the pdh0 to emulate the wExist
+            tmp = radarPoints[:,4]
+            radarPoints[:,4] = np.piecewise(tmp, [tmp==0,tmp==1,tmp==2,tmp==3,tmp==4,tmp==5,tmp==6,tmp==7],
+                                                 [1-0.0 ,1-0.25,1-0.50,1-0.75,1-0.90,1-0.99,1-0.999,1-1.0])
             ## create the heatmap
             start = time.time()
             self.map.addRadarData(radarPoints)
