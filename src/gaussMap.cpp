@@ -1,5 +1,5 @@
 #include "gaussMap.hpp"
-#include "utils.hpp"
+#include "cudaUtils.hpp"
 #include <iostream>
 #include <limits>
 
@@ -13,6 +13,12 @@ GaussMap::GaussMap(const std::string params){
 
     useMin = config["UseMinValue"].as<bool>();
     minCutoff = config["MinGaussValue"].as<float>();
+
+    radarDistri = (distInfo_t*)malloc(sizeof(struct DistributionInfo));
+    radarDistri->stdDev = config["Radar"]["StdDev"].as<float>();
+    radarDistri->mean = config["Radar"]["Mean"].as<float>();
+    radarDistri->distCutoff = config["Radar"]["RadCutoff"].as<float>();
+
     if(!useMin)
         minCutoff = std::numeric_limits<float>::min();
 
@@ -20,14 +26,10 @@ GaussMap::GaussMap(const std::string params){
     mapInfo.rows = mapRel.height * mapRel.res;
     mapInfo.elementSize = sizeof(mapType_t);
 
+    // allocate memory
     safeCudaMalloc(&array, mapInfo.cols * mapInfo.rows * mapInfo.elementSize);
-    // allocate memory for the radar ids
     safeCudaMalloc(&radarIds, sizeof(unsigned long long int) * mapInfo.rows * mapInfo.cols);
-
-    radarDistri = (distInfo_t*)malloc(sizeof(struct DistributionInfo));
-    radarDistri->stdDev = config["Radar"]["StdDev"].as<float>();
-    radarDistri->mean = config["Radar"]["Mean"].as<float>();
-    radarDistri->distCutoff = config["Radar"]["RadCutoff"].as<float>();
+    
 
     // allocate this struct in shared memory so we don't have to copy
     // it to each kernel when it's needed
@@ -36,15 +38,11 @@ GaussMap::GaussMap(const std::string params){
     safeCudaMalloc(&camInfo_cuda, sizeof(struct Array_Info));
     safeCudaMalloc(&mapRel_cuda, sizeof(struct Array_Relationship));
     safeCudaMalloc(&radarDistri_c, sizeof(distInfo_t));
-    
     safeCudaMemcpy2Device(mapInfo_cuda, &mapInfo, sizeof(struct Array_Info));
     safeCudaMemcpy2Device(mapRel_cuda, &mapRel, sizeof(struct Array_Relationship));
     safeCudaMemcpy2Device(radarDistri_c, radarDistri, sizeof(distInfo_t));
-
-    // this is all done so we can check if it has been allocated later
-    radarData = nullptr;
-    camData = nullptr;
     reset();
+
 }
 
 GaussMap::~GaussMap(){
@@ -54,10 +52,8 @@ GaussMap::~GaussMap(){
     safeCudaFree(camInfo_cuda);
     safeCudaFree(mapRel_cuda);
     safeCudaFree(radarIds);
-
     safeCudaFree(radarData);
     safeCudaFree(camData);
-
     free(radarDistri);
     safeCudaFree(radarDistri_c);
 }

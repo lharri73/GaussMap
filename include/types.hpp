@@ -1,6 +1,9 @@
 #pragma once
 #include <cstdint>
 #include <cstdlib>
+#include <memory>
+// #include "ecocar_fusion/objData.hpp"
+#include "params.hpp"
 
 typedef float RadarData_t;
 typedef float mapType_t;
@@ -18,10 +21,11 @@ typedef struct Array_Relationship{
     size_t res;             // resolution (cells per linear meter)
 } array_rel;
 
+
 typedef struct MaxVal{
     uint8_t isMax;
     uint8_t classVal;
-    int16_t radars[49];
+    int16_t radars[searchSize];
 } maxVal_t;
 
 typedef struct DistributionInfo{
@@ -35,3 +39,19 @@ typedef struct RadarIds{
     int16_t garbage;
     float probability;     // value of pdf
 } radarId_t; 
+
+// typedef struct objStruct {
+//     ros::Time time;
+//     float object[3]; // [x,y,class]
+// }* obstacle_t;
+
+// typedef objStruct *obstacle_t;
+typedef struct {
+    float* data;
+    array_info info;
+} array_t;
+
+typedef struct position{
+    float x;
+    float y;
+} Position_t;

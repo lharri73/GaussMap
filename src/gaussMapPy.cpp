@@ -3,7 +3,7 @@ Implementation of the GaussMap class that requires python bindings.
 Every function not in this file should not require python
 */
 #include "gaussMap.hpp"
-#include "utils.hpp"
+#include "cudaUtils.hpp"
 
 // this template py:array_t forces the numpy array to be passed without any strides
 // and favors a c-style array
@@ -82,7 +82,7 @@ py::array_t<float> GaussMap::associate(){
     if(radarData == nullptr || camData == nullptr)
         throw std::runtime_error("Radar and Camera data must be added before association!");
 
-    std::pair<array_info,float*> associated = associateCamera();
+    std::pair<array_info,float*> associated = associatePair();
 
     py::buffer_info ret(
         associated.second,

@@ -5,10 +5,16 @@
 #include <pybind11/stl.h>
 
 #include <cstdlib>
-#include <cuda_runtime.h>
 #include <vector>
 #include <map>
 #include <yaml-cpp/yaml.h>
+#include <cuda_runtime.h>
+#include <thread>
+#include <string>
+#include <iostream>
+#include <limits>
+#include <mutex>
+#include <algorithm>
 
 #include "types.hpp"
 
@@ -32,6 +38,7 @@ class GaussMap{
         
         void reset();
         py::array_t<float> associate();
+        std::pair<array_info,float*> associatePair();
 
     private:
         mapType_t* array;
@@ -53,8 +60,9 @@ class GaussMap{
                                     // called from addRadarData()
 
         std::pair<array_info,float*> calcMax();
-        std::pair<array_info,float*> associateCamera();
 
         float minCutoff;
         bool useMin;
+        std::mutex radMapMutex;
+        std::mutex meMapMutex;
 };
