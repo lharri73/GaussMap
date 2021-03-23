@@ -46,7 +46,7 @@ void calcMaxKernel(maxVal_t *isMax,
     toInsert->isMax = 1;
     toInsert->classVal = 0;
 exit:
-    for(;iterator < searchSize; iterator++)
+    for(;iterator <= searchSize; iterator++)
         toInsert->radars[iterator] = -1;
 }
 

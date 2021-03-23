@@ -6,6 +6,6 @@ UseMinValue: False
 MinGaussValue: .25
 
 Radar:
-  StdDev: 1.0         ## (float) Standard deviation of each radar point's normal distribution
+  StdDev: .5         ## (float) Standard deviation of each radar point's normal distribution
   Mean: 0.0           ## (float) mean of each radar points normal distribution
-  RadCutoff: 3.0      ## (float) distance to cutoff distribution for each radar point (meters)
+  RadCutoff: 1.5      ## (float) distance to cutoff distribution for each radar point (meters)

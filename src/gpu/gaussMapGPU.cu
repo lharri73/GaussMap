@@ -11,8 +11,10 @@ void GaussMap::calcRadarMap(){
 
     safeCudaMemcpy2Device(radarInfo_cuda, &radarInfo, sizeof(array_info));
 
-    if(radarInfo.rows == 0)
+    if(radarInfo.rows == 0){
+        printf("no radar points this round\n");
         return;
+    }
 
     // dispatch the kernel with `numPoints x mapInfo.rows` threads
     radarPointKernel<<<mapInfo.rows,radarInfo.rows>>>(
@@ -86,13 +88,16 @@ std::pair<array_info,float*> GaussMap::calcMax(){
     for(size_t row = 0; row < mapInfo.rows; row++){
         for(size_t col = 0; col < mapInfo.cols; col++){
             tmp = isMax[(size_t)(row * mapInfo.cols + col)];
+            printf("%.1f ", tmp.isMax);
             if(tmp.isMax == 1 && arrayTmp[row * mapInfo.cols + col] >= minCutoff){
                 numMax++;
                 maximaLocs.push_back(row);
                 maximaLocs.push_back(col);
             }
         }
+        putchar('\n');
     }
+    printf("------\n\nnumMax: %zu\n", numMax);
 
     free(isMax);
     free(arrayTmp);

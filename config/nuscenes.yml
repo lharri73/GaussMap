@@ -22,6 +22,7 @@ NUSCENES:
       "RADAR_FRONT",
       "RADAR_BACK_LEFT",
       "RADAR_BACK_RIGHT",
+      "LIDAR_TOP"
     ]
 
 ## categories to include in database and their corresponding name mapping.

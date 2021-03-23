@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import open3d as o3d
 import time
 from consts import class_reverse
+import copy
 import json
 
 from datetime import datetime
@@ -53,8 +54,8 @@ class GaussMapWrapper:
 
             ## use the pdh0 to emulate the wExist
             tmp = radarPoints[:,4]
-            radarPoints[:,4] = np.piecewise(tmp, [tmp==0,tmp==1,tmp==2,tmp==3,tmp==4,tmp==5,tmp==6,tmp==7],
-                                                 [1-0.0 ,1-0.25,1-0.50,1-0.75,1-0.90,1-0.99,1-0.999,1-1.0])
+            radarPoints[:,4] = 0 ##np.piecewise(tmp, [tmp==0,tmp==1,tmp==2,tmp==3,tmp==4,tmp==5,tmp==6,tmp==7],
+                                 ##                [1-0.0 ,1-0.25,1-0.50,1-0.75,1-0.90,1-0.99,1-0.999,1-1.0])
             ## create the heatmap
             start = time.time()
             self.map.addRadarData(radarPoints)
@@ -62,9 +63,15 @@ class GaussMapWrapper:
             self.map.addCameraData(cameraPoints)
             camTime = time.time()
             maxima = self.map.associate()
+            self.showImage()
             assTime = time.time()
             tqdm.write("radar: {:.5f}, camera: {:.5f}, associate: {:.5f}, total: {:.5f}".format(radar-start, camTime-radar, assTime-camTime, assTime-start))
-
+            # if frame['sample_token'] == "0d0700a2284e477db876c3ee1d864668":
+            #     print("results", maxima.shape)
+            #     print("radarPoints", radarPoints.shape)
+            #     print("camPoints", cameraPoints.shape)
+            #     self.showFrame(frame, maxima)
+            #     input()
 
             # ## Handle the case where there are no points found in this frame
             if maxima.shape[0] == 0:
@@ -114,33 +121,21 @@ class GaussMapWrapper:
             json.dump(out, f, indent=4)
 
 
-    def showImage(self, camPoints):
+    def showImage(self):
         """
         Creates an image of the heatmap and displays it as greyscale
         """
-        f, axarr = plt.subplots(2,2)
+        f, axarr = plt.subplots(1,1)
         array = self.map.asArray()
         scaled = np.uint8(np.interp(array, (0, array.max()), (0,255)))
-        axarr[0][0].imshow(scaled, cmap="gray")
-
-        self.map.addCameraData(camPoints)
-        array = self.map.asArray()
-        scaled = np.uint8(np.interp(array, (0, array.max()), (0,255)))
-        axarr[0][1].imshow(scaled, cmap="gray")
-               
-        maxima = self.map.findMax()
-        # np.savetxt("maxima.txt", maxima)
-
-        classes = self.map.classes()
-        # cls_scaled = np.uint8(np.interp(classes, (0, array.max()), (0,255)))
-        axarr[1][0].imshow(classes, cmap='Paired')
-
-        axarr[1][1].imshow(scaled, cmap='gray')
-        axarr[1][1].scatter(maxima[:,1], maxima[:,0], c=maxima[:,2], cmap='Paired', marker='o', s=(72./f.dpi)**2)
+        axarr.imshow(scaled, cmap="gray")
+              
+        # axarr.scatter(maxima[:,1], maxima[:,0], c=maxima[:,2], cmap='Paired', marker='o', s=(72./f.dpi)**2)
 
         plt.show(block=False)
+        plt.waitforbuttonpress()
 
-    def showFrame(self, frame):
+    def showFrame(self, frame, results):
         """
         Draws the radar pointcloud and the lidar pointcloud in open3d
         """
@@ -149,20 +144,26 @@ class GaussMapWrapper:
 
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(frame['lidar']['pointcloud'].points[:3,:].T)
+        pcd.paint_uniform_color(np.array([1,0,1])) ## blue
+        results_pcd = o3d.geometry.PointCloud()
+        # print(results.shape)
+        results_pcd.points = o3d.utility.Vector3dVector(results[:,:3])
+        results_pcd.paint_uniform_color(np.array([0,0,1]))
 
         rpcd = o3d.geometry.PointCloud()
         rpcd.points = o3d.utility.Vector3dVector(frame['radar']['pointcloud'].points[:3,:].T)
         rpcd.paint_uniform_color(np.array([1,0,0])) ## Red
 
         cpcd = o3d.geometry.PointCloud()
-        ctArray = np.array(self.centerTrack[frame['sample_token']])
-        ctArray[:,2] = 0
+        ctArray = copy.deepcopy(np.array(self.centerTrack[frame['sample_token']]))
+        ctArray[:,2] = 0.5
         cpcd.points = o3d.utility.Vector3dVector(ctArray)
-        cpcd.paint_uniform_color(np.array([0,1,0])) ## Red
+        cpcd.paint_uniform_color(np.array([0,1,0])) ## green
         
         vis.add_geometry(pcd)
         vis.add_geometry(rpcd)
         vis.add_geometry(cpcd)
+        vis.add_geometry(results_pcd)
         ctr = vis.get_view_control()
 
         # ctr.set_up(np.array([1,0,0]))

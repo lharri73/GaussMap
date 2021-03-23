@@ -22,7 +22,7 @@ void GaussMap::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::ar
 
     radarPoints = buf1.shape[0];            // num points
     if(radarPoints == 0) return;            // do nothing if there are no points;
-    radarFeatures = buf1.shape[1];          // usually 18
+    radarFeatures = buf1.shape[1];          // usually 6
     if(radarFeatures != 6){
         throw std::runtime_error("Got invalid shape of Radar Data. should be Nx6");
     }
@@ -30,13 +30,18 @@ void GaussMap::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::ar
     radarInfo.elementSize = sizeof(RadarData_t);
     radarInfo.cols = radarFeatures;
     radarInfo.rows = radarPoints;
-    printf("radPoints: %zu\n", radarPoints);
 
     // allocate and copy the array to the GPU so we can run a kernel on it
     safeCudaMalloc(&radarData, sizeof(RadarData_t) * radarPoints * radarFeatures);
+    // for(size_t i = 0; i < radarInfo.size() / sizeof(RadarData_t); i++){
+    //     if(i % radarInfo.cols == 0)
+    //         putchar('\n');
+    //     printf("%.2f ", data[i]);
+    // }
+    // printf("\n------------------------\n\n");
 
     safeCudaMemcpy2Device(radarData, data, sizeof(RadarData_t) * radarPoints * radarFeatures);
-
+    
     calcRadarMap();     // setup for the CUDA kernel. in GPU code
 }
 
