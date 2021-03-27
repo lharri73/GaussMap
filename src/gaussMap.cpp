@@ -35,7 +35,6 @@ void GaussMap::init(int mapHeight, int mapWidth, int mapResolution, bool useMin)
     safeCudaMemcpy2Device(radarDistri_c, radarDistri, sizeof(distInfo_t));
     safeCudaMemcpy2Device(windowIdInfo_cuda, &windowIdInfo, sizeof(array_info));
     reset();
-    printf("here\n");
 }
 
 GaussMap::~GaussMap(){

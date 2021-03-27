@@ -46,10 +46,7 @@ void GaussMapPy::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::
 
     radarPoints = buf1.shape[0];            // num points
     if(radarPoints == 0) return;            // do nothing if there are no points;
-    radarFeatures = buf1.shape[1];          // usually 6
-    if(radarFeatures != 6){
-        throw std::runtime_error("Got invalid shape of Radar Data. should be Nx6");
-    }
+    radarFeatures = buf1.shape[1];
 
     radarInfo.elementSize = sizeof(RadarData_t);
     radarInfo.cols = radarFeatures;

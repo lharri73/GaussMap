@@ -49,7 +49,7 @@ class GaussMapWrapper:
                 continue
 
             ## rearange to be similar to the bosch radars
-            mask = [0,1,8,9,15,4]
+            mask = [0,1,8,9,15,4,12,13]
             radarPoints = radarPoints[:,mask]
 
             ## use the pdh0 to emulate the wExist
@@ -58,12 +58,14 @@ class GaussMapWrapper:
                                  ##                [1-0.0 ,1-0.25,1-0.50,1-0.75,1-0.90,1-0.99,1-0.999,1-1.0])
             ## create the heatmap
             start = time.time()
+            radarPoints[:,6] = 4 * radarPoints[:,6] / 30.0
+            radarPoints[:,7] = 4 * radarPoints[:,7] / 30.0
             self.map.addRadarData(radarPoints)
             radar = time.time()
             self.map.addCameraData(cameraPoints)
             camTime = time.time()
             maxima = self.map.associate()
-            self.showImage()
+            # self.showImage()
             assTime = time.time()
             tqdm.write("radar: {:.5f}, camera: {:.5f}, associate: {:.5f}, total: {:.5f}".format(radar-start, camTime-radar, assTime-camTime, assTime-start))
             # if frame['sample_token'] == "0d0700a2284e477db876c3ee1d864668":

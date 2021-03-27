@@ -11,7 +11,7 @@
 // allocate this struct in shared memory so we don't have to copy
 // it to each kernel when it's needed
 
-// expected to be in: [x,y,vx,vy,wExist,targetId]
+// expected to be in: [x,y,vx,vy,wExist,targetId,dxSig,dySig]
 void GaussMap::calcRadarMap(){
     if(radarInfo.cols != 8)
         throw std::runtime_error("size of radar data is incorrect. Should be Nx8");
