@@ -2,12 +2,36 @@
 Implementation of the GaussMap class that requires python bindings.
 Every function not in this file should not require python
 */
-#include "gaussMap.hpp"
+#include "gaussMapPy.hpp"
 #include "cudaUtils.hpp"
+
+GaussMapPy::GaussMapPy(const std::string params){
+    ROS_INFO_STREAM("[ecocar_fusion_node] Initializing GaussMap...");
+
+    int mapWidth;               // Gauss map width
+    int mapHeight;              // Gauss map height
+    int mapResolution;          // Gauss map resolution (meter per pixel?)
+    radarDistri = (distInfo_t*)malloc(sizeof(struct DistributionInfo));
+
+    YAML::Node config = YAML::LoadFile(params);
+
+    mapHeight = config["MapHeight"].as<int>();
+    mapWidth = config["MapWidth"].as<int>();
+    mapResolution = config["MapResolution"].as<int>();
+
+    useMin = config["UseMinValue"].as<bool>();
+    minCutoff = config["MinGaussValue"].as<float>();
+
+    radarDistri = (distInfo_t*)malloc(sizeof(struct DistributionInfo));
+    radarDistri->stdDev = config["Radar"]["StdDev"].as<float>();
+    radarDistri->mean = config["Radar"]["Mean"].as<float>();
+    radarDistri->distCutoff = config["Radar"]["RadCutoff"].as<float>();
+    GaussMap::init(mapHeight, mapWidth, mapResolution,useMin);
+}
 
 // this template py:array_t forces the numpy array to be passed without any strides
 // and favors a c-style array
-void GaussMap::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::array::forcecast> array){
+void GaussMapPy::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::array::forcecast> array){
     if(radarData != nullptr)
         throw std::runtime_error("addRadarData can only be called once after calling reset()");
     size_t radarPoints, radarFeatures;
@@ -47,7 +71,7 @@ void GaussMap::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::ar
 
 
 // returns numpy array to python of gaussMap
-py::array_t<mapType_t> GaussMap::asArray(){
+py::array_t<mapType_t> GaussMapPy::asArray(){
     mapType_t* retArray = new mapType_t[mapInfo.cols * mapInfo.rows];
 
     safeCudaMemcpy2Host(retArray, array, mapInfo.size());
@@ -63,7 +87,7 @@ py::array_t<mapType_t> GaussMap::asArray(){
     return py::array_t<mapType_t>(a);
 }
 
-void GaussMap::addCameraData(py::array_t<float, py::array::c_style | py::array::forcecast> array){
+void GaussMapPy::addCameraData(py::array_t<float, py::array::c_style | py::array::forcecast> array){
     py::buffer_info buf1 = array.request();
     float* data;
     data = static_cast<float*>(buf1.ptr);
@@ -82,7 +106,7 @@ void GaussMap::addCameraData(py::array_t<float, py::array::c_style | py::array::
 
 }
 
-py::array_t<float> GaussMap::associate(){
+py::array_t<float> GaussMapPy::associate(){
 
     // return: [x,y,vx,vy,class]
 
@@ -103,11 +127,11 @@ py::array_t<float> GaussMap::associate(){
 }
 
 PYBIND11_MODULE(gaussMap, m){
-    py::class_<GaussMap>(m,"GaussMap")
+    py::class_<GaussMapPy>(m,"GaussMap")
         .def(py::init<std::string>())
-        .def("reset", &GaussMap::reset)
-        .def("addRadarData", &GaussMap::addRadarData)
-        .def("addCameraData", &GaussMap::addCameraData)
-        .def("asArray", &GaussMap::asArray, py::return_value_policy::take_ownership)
-        .def("associate", &GaussMap::associate, py::return_value_policy::take_ownership);
+        .def("reset", &GaussMapPy::reset)
+        .def("addRadarData", &GaussMapPy::addRadarData)
+        .def("addCameraData", &GaussMapPy::addCameraData)
+        .def("asArray", &GaussMapPy::asArray, py::return_value_policy::take_ownership)
+        .def("associate", &GaussMapPy::associate, py::return_value_policy::take_ownership);
 }

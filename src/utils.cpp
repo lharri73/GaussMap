@@ -1,4 +1,8 @@
+#ifndef NUSCENES
+#include "ecocar_fusion/cudaUtils.hpp"
+#else
 #include "cudaUtils.hpp"
+#endif
 
 void checkCudaError(cudaError_t error){
     if(error != cudaSuccess){

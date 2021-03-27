@@ -1,7 +1,12 @@
 #pragma once
 #include <cuda_fp16.h>
+#ifndef NUSCENES
+#include "ecocar_fusion/gaussMap.hpp"
+#include "ecocar_fusion/cudaUtils.hpp"
+#else
 #include "gaussMap.hpp"
 #include "cudaUtils.hpp"
+#endif
 
 // Defines a set of gaurds to prevent overflows our out of 
 // bounds errors. Useful for debugging 
@@ -74,11 +79,16 @@ __global__ void calcMaxKernel(
         const float* array, 
         const array_info *mapInfo, 
         const radarId_t *radarIds,
-        unsigned short windowSize);
+        const array_info *idInfo,
+        unsigned short windowSize,
+        int16_t *windowIds,
+        const array_info *windowIdInfo);
 
 __device__ float calcMean(
+        size_t cellIndex,
         size_t col,
         const int16_t* radars, 
+        const array_info *idInfo,
         const RadarData_t *radarData, 
         const array_info *radarInfo);
 
@@ -92,7 +102,9 @@ __global__ void aggregateMax(
         const RadarData_t *radarData, 
         const array_info *radarInfo, 
         const int *maximaLocs,
-        const array_info *locsInfo);
+        const array_info *locsInfo,
+        const int16_t *windowIds,
+        const array_info *windowIdInfo);
 
 __global__ void setSpaceMap(
         const RadarData_t *radarData,
@@ -110,7 +122,8 @@ __global__ void associateCameraKernel(
         float* results, 
         const array_info *resultInfo, 
         float* spaceMap,
-        const array_info* spaceMapInfo);
+        const array_info* spaceMapInfo,
+        float adjustFactor);
 
 __global__ void joinFeatures(
         const RadarData_t *radarData,

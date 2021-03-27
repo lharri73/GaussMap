@@ -1,13 +1,20 @@
+#ifndef NUSCENES
+#include "ecocar_fusion/gaussMap.cuh"
+#else
 #include "gaussMap.cuh"
+#endif
 #include <sstream>
+
+#include <thrust/device_ptr.h>
+#include <thrust/fill.h>
 
 // allocate this struct in shared memory so we don't have to copy
 // it to each kernel when it's needed
 
 // expected to be in: [x,y,vx,vy,wExist,targetId]
 void GaussMap::calcRadarMap(){
-    if(radarInfo.cols != 6)
-        throw std::runtime_error("size of radar data is incorrect. Should be Nx6");
+    if(radarInfo.cols != 8)
+        throw std::runtime_error("size of radar data is incorrect. Should be Nx8");
 
     safeCudaMemcpy2Device(radarInfo_cuda, &radarInfo, sizeof(array_info));
 
@@ -62,7 +69,10 @@ std::pair<array_info,float*> GaussMap::calcMax(){
         array,
         mapInfo_cuda,
         radarIds,
-        winSize
+        radarInfo_cuda,
+        winSize,
+        windowIds,
+        windowIdInfo_cuda
     );
 
     cudaDeviceSynchronize();
@@ -88,16 +98,13 @@ std::pair<array_info,float*> GaussMap::calcMax(){
     for(size_t row = 0; row < mapInfo.rows; row++){
         for(size_t col = 0; col < mapInfo.cols; col++){
             tmp = isMax[(size_t)(row * mapInfo.cols + col)];
-            printf("%.1f ", tmp.isMax);
             if(tmp.isMax == 1 && arrayTmp[row * mapInfo.cols + col] >= minCutoff){
                 numMax++;
                 maximaLocs.push_back(row);
                 maximaLocs.push_back(col);
             }
         }
-        putchar('\n');
     }
-    printf("------\n\nnumMax: %zu\n", numMax);
 
     free(isMax);
     free(arrayTmp);
@@ -155,7 +162,9 @@ std::pair<array_info,float*> GaussMap::calcMax(){
         radarData,      // radarData
         radarInfo_cuda,
         maximaLocs_c,
-        maximaloc_nfo_c
+        maximaloc_nfo_c,
+        windowIds,
+        windowIdInfo_cuda
     );
 
     cudaDeviceSynchronize();
@@ -306,7 +315,8 @@ std::pair<array_info,float*> GaussMap::associatePair(){
             associated,
             assocInfo_c,
             spaceTmp,
-            spaceMapInfo_c
+            spaceMapInfo_c,
+            adjustFactor
         );
         cudaDeviceSynchronize();
         cudaError_t error2 = cudaGetLastError();
@@ -365,4 +375,20 @@ std::pair<array_info,float*> GaussMap::associatePair(){
     
         return std::pair<array_info,float*>(assocInfo,ret);
     }
+}
+
+void GaussMap::reset(){
+    checkCudaError(cudaMemset(array, 0, mapInfo.cols * mapInfo.rows * mapInfo.elementSize));
+    
+    // use thrust to set to windowIds to -1
+    thrust::device_ptr<int16_t> dev_ptr(windowIds);
+    size_t offset = windowIdInfo.rows * windowIdInfo.cols;
+    thrust::fill(dev_ptr, dev_ptr+offset, (int16_t)(-1));
+    setRadarIds();
+
+    safeCudaFree(radarData);
+    safeCudaFree(camData);
+
+    radarData = nullptr;
+    camData = nullptr;
 }

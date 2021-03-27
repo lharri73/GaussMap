@@ -1,68 +1,58 @@
 #pragma once
-
-#include <pybind11/pybind11.h>
-#include <pybind11/numpy.h>
-#include <pybind11/stl.h>
-
-#include <cstdlib>
+#include <stdlib.h>
+#include <cuda_runtime.h>
 #include <vector>
 #include <map>
-#include <yaml-cpp/yaml.h>
-#include <cuda_runtime.h>
 #include <thread>
-#include <string>
 #include <iostream>
 #include <limits>
 #include <mutex>
 #include <algorithm>
 
+#ifdef NUSCENES
 #include "types.hpp"
+#include "cudaUtils.hpp"
+#include "params.hpp"
+#else
+#include "ecocar_fusion/types.hpp"
+#include "ecocar_fusion/cudaUtils.hpp"
+#include "ecocar_fusion/params.hpp"
+#endif
 
-namespace py = pybind11;
 
 class GaussMap{
     public:
-        GaussMap(const std::string params);
-        ~GaussMap();        
+        std::pair<array_info,float*> associatePair(); // function fusing the radar and vision detections
+        void reset();                       // clears the array, radar, and camera data for the next fusion cycle
+        ~GaussMap();
+        void init(int mapHeight, int mapWidth, int mapResolution, bool useMin);
         
-        // used to add radar data to the map. (can only be called once)
-        // takes a contiguous, 2 dimensional numpy array
-        void addRadarData(py::array_t<RadarData_t, py::array::c_style | py::array::forcecast> array);
+    protected:
+        mapType_t* array;                   // cuda array for heatmap of gauss distributions
+        array_info mapInfo, *mapInfo_cuda;  // holds size of heatmap (cuda and host)
+        array_rel mapRel, *mapRel_cuda;     // holds resolution and real world size (m) of heatmap
 
-        void addCameraData(py::array_t<float, py::array::c_style | py::array::forcecast> array);
-
-        // returns the heatmap as a 2 dimensional numpy array
-        py::array_t<mapType_t> asArray();
-        py::array_t<float> findMax();
-        py::array_t<uint16_t> classes();
-        
-        void reset();
-        py::array_t<float> associate();
-        std::pair<array_info,float*> associatePair();
-
-    private:
-        mapType_t* array;
-        array_info mapInfo, *mapInfo_cuda;
-        array_rel mapRel, *mapRel_cuda;
-
-        RadarData_t* radarData = nullptr;     // set to nullptr until received
+        RadarData_t* radarData = nullptr;   // cuda array for radar data. set to nullptr until received
         array_info radarInfo, *radarInfo_cuda;
         radarId_t *radarIds;
-        void setRadarIds();
+        int16_t *windowIds;                 // cuda radar ids involved in each window during a maxima calculation
+        array_info windowIdInfo, *windowIdInfo_cuda;// holds size of radar ids
 
-        float* camData = nullptr;
-        array_info camInfo, *camInfo_cuda;
+        float* camData = nullptr;           // cuda array for camera data. set to nullptr until eceivedr
+        array_info camInfo, *camInfo_cuda;  // holds size of camera data (rows,cols,element size (sizeof(float)))
 
-        distInfo_t* radarDistri;         // normal distrubution info. 
-        distInfo_t* radarDistri_c;       // 0: stddev, 1: mean, 2: distance cutoff
+        distInfo_t* radarDistri;            // normal distrubution info. 
+        distInfo_t* radarDistri_c;          // 0: stddev, 1: mean, 2: distance cutoff
 
-        void calcRadarMap();        // function used to setup the kernel. 
-                                    // called from addRadarData()
 
-        std::pair<array_info,float*> calcMax();
+        std::mutex runLock;                 // mutex to prevent arrays being overwritten during processing
 
-        float minCutoff;
-        bool useMin;
-        std::mutex radMapMutex;
-        std::mutex meMapMutex;
+        float minCutoff = 0;                // parameter used during pdf calculation
+        bool useMin = false;                // whether this parameter is used or not (sets above to min of float (-inf))
+        float adjustFactor = 1;             // factor for distance to neighbor association search
+        
+        void calcRadarMap();                // function used to setup the kernel. 
+                                            // called from addRadarData()
+        std::pair<array_info,float*> calcMax(); // calculates the local maxima of GaussMap::array
+        void setRadarIds();                 // resets the radarIds grid to -1 during reset cycle
 };

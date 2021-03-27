@@ -6,7 +6,7 @@ from tqdm import tqdm
 from gaussMap import GaussMap
 import numpy as np
 import matplotlib.pyplot as plt
-import open3d as o3d
+# import open3d as o3d
 import time
 from consts import class_reverse
 import copy

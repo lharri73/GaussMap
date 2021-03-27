@@ -2,7 +2,8 @@
 
 ## Requirements
 - cmake >=3.17
-- pybind11 >=2.2 (installed with apt is easier)
+- pybind11 >=2.2 (installed with apt is easier as `python3-pybind11`)
+- yaml-cpp (apt package `libyaml-cpp-dev`)
 - CUDA (tested on 10.2 & 11.2)
 
 ## Installation
@@ -10,6 +11,16 @@ Installation is simplified with python.
 Simply run `python setup.py install` and dependencies will be installed and configured. 
 
 ## Getting Started
+1. This requires a newer version of cmake than is available with most Ubuntu
+   versions. If on Ubuntu, a newer version can be installed with `apt`:
+      1. `wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null`
+      2. Add the repository to your sources list:
+         - 20.04
+           `sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main'`
+         - 18.04
+           `sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ bionic main'`
+         - 16.04
+           `sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ xenial main'`
 1. Run the following to install the python library
     ```bash
     python setup.py install

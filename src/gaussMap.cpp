@@ -1,51 +1,45 @@
+#ifndef NUSCENES
+#include "ecocar_fusion/gaussMap.hpp"
+#else
 #include "gaussMap.hpp"
-#include "cudaUtils.hpp"
-#include <iostream>
-#include <limits>
+#endif
 
-// allocates memory for the map
-GaussMap::GaussMap(const std::string params){
-    YAML::Node config = YAML::LoadFile(params);
-
-    mapRel.height = config["MapHeight"].as<int>();
-    mapRel.width = config["MapWidth"].as<int>();
-    mapRel.res = config["MapResolution"].as<int>();
-
-    useMin = config["UseMinValue"].as<bool>();
-    minCutoff = config["MinGaussValue"].as<float>();
-
-    radarDistri = (distInfo_t*)malloc(sizeof(struct DistributionInfo));
-    radarDistri->stdDev = config["Radar"]["StdDev"].as<float>();
-    radarDistri->mean = config["Radar"]["Mean"].as<float>();
-    radarDistri->distCutoff = config["Radar"]["RadCutoff"].as<float>();
-
-    if(!useMin)
-        minCutoff = std::numeric_limits<float>::min();
-
+void GaussMap::init(int mapHeight, int mapWidth, int mapResolution, bool useMin){
+    // Set parameters
+    mapRel.height = mapHeight;
+    mapRel.width = mapWidth;
+    mapRel.res = mapResolution;
     mapInfo.cols = mapRel.width * mapRel.res;
     mapInfo.rows = mapRel.height * mapRel.res;
     mapInfo.elementSize = sizeof(mapType_t);
+    windowIdInfo.rows = mapInfo.rows * mapInfo.cols;
+    windowIdInfo.cols = searchSize;
+    windowIdInfo.elementSize = sizeof(int16_t);
+    if(!useMin) minCutoff = std::numeric_limits<float>::min();
 
     // allocate memory
     safeCudaMalloc(&array, mapInfo.cols * mapInfo.rows * mapInfo.elementSize);
     safeCudaMalloc(&radarIds, sizeof(unsigned long long int) * mapInfo.rows * mapInfo.cols);
-    
+    safeCudaMalloc(&windowIds, windowIdInfo.rows * windowIdInfo.cols * sizeof(int16_t));
 
     // allocate this struct in shared memory so we don't have to copy
     // it to each kernel when it's needed
-    safeCudaMalloc(&mapInfo_cuda, sizeof(struct Array_Info));
-    safeCudaMalloc(&radarInfo_cuda, sizeof(struct Array_Info));
-    safeCudaMalloc(&camInfo_cuda, sizeof(struct Array_Info));
+    safeCudaMalloc(&mapInfo_cuda, sizeof(array_info));
+    safeCudaMalloc(&radarInfo_cuda, sizeof(array_info));
+    safeCudaMalloc(&camInfo_cuda, sizeof(array_info));
+    safeCudaMalloc(&windowIdInfo_cuda, sizeof(array_info));
     safeCudaMalloc(&mapRel_cuda, sizeof(struct Array_Relationship));
     safeCudaMalloc(&radarDistri_c, sizeof(distInfo_t));
-    safeCudaMemcpy2Device(mapInfo_cuda, &mapInfo, sizeof(struct Array_Info));
+    safeCudaMemcpy2Device(mapInfo_cuda, &mapInfo, sizeof(array_info));
     safeCudaMemcpy2Device(mapRel_cuda, &mapRel, sizeof(struct Array_Relationship));
     safeCudaMemcpy2Device(radarDistri_c, radarDistri, sizeof(distInfo_t));
+    safeCudaMemcpy2Device(windowIdInfo_cuda, &windowIdInfo, sizeof(array_info));
     reset();
-
+    printf("here\n");
 }
 
 GaussMap::~GaussMap(){
+    // this destructor is called last
     safeCudaFree(array);
     safeCudaFree(mapInfo_cuda);
     safeCudaFree(radarInfo_cuda);
@@ -56,15 +50,5 @@ GaussMap::~GaussMap(){
     safeCudaFree(camData);
     free(radarDistri);
     safeCudaFree(radarDistri_c);
-}
-
-void GaussMap::reset(){
-    safeCudaMemset(array, 0, mapInfo.cols * mapInfo.rows * mapInfo.elementSize);
-    setRadarIds();
-
-    safeCudaFree(radarData);
-    safeCudaFree(camData);
-
-    radarData = nullptr;
-    camData = nullptr;
+    safeCudaFree(windowIdInfo_cuda);
 }

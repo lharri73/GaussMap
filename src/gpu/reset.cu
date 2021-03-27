@@ -1,4 +1,8 @@
+#ifndef NUSCENES
+#include "ecocar_fusion/gaussMap.cuh"
+#else
 #include "gaussMap.cuh"
+#endif
 
 /* Functions like memset, but since cudaMemset takes an integer, 
  * this is necessary. This assigns an unsigned long long int to the

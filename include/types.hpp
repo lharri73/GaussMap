@@ -2,8 +2,11 @@
 #include <cstdint>
 #include <cstdlib>
 #include <memory>
-// #include "ecocar_fusion/objData.hpp"
-#include "params.hpp"
+#ifndef NUSCENES
+#include <ros/ros.h>
+#include "ecocar_fusion/objData.hpp"
+#include "ecocar_fusion/params.hpp"
+#endif
 
 typedef float RadarData_t;
 typedef float mapType_t;
@@ -25,7 +28,6 @@ typedef struct Array_Relationship{
 typedef struct MaxVal{
     uint8_t isMax;
     uint8_t classVal;
-    int16_t radars[searchSize];
 } maxVal_t;
 
 typedef struct DistributionInfo{
@@ -45,7 +47,10 @@ typedef struct RadarIds{
 //     float object[3]; // [x,y,class]
 // }* obstacle_t;
 
-// typedef objStruct *obstacle_t;
+#ifndef NUSCENES
+typedef objStruct *obstacle_t;
+#endif
+
 typedef struct {
     float* data;
     array_info info;

@@ -1,4 +1,8 @@
+#ifndef NUSCENES
+#include "ecocar_fusion/gaussMap.cuh"
+#else
 #include "gaussMap.cuh"
+#endif
 #include <math_constants.h>     // CUDART_PI_F
 
 __device__ __forceinline__
@@ -64,7 +68,10 @@ void radarPointKernel(mapType_t* gaussMap,
         unsigned long long int ulong;
     } un;
 
-    float stdDev = (1-radarData[array_index(threadIdx.x, 4, radarInfo)] * distributionInfo->stdDev);
+    // float stdDev = hypotf(radarData[array_index(threadIdx.x,6,radarInfo)], radarData[array_index(threadIdx.x,7,radarInfo)]) * (distributionInfo->stdDev);
+    // stdDev = max(0.1, stdDev); // don't want stdDev to be zero
+    float stdDev = distributionInfo->stdDev;
+    float adjustment = 1;//radarData[array_index(threadIdx.x, 4, radarInfo)];
     
     for(size_t col = 0; col < mapInfo->cols; col++){
         // find where the cell is relative to the radar point
@@ -78,13 +85,16 @@ void radarPointKernel(mapType_t* gaussMap,
         if(radius > distributionInfo->distCutoff)
             continue;
 
-        float pdfVal = calcPdf(stdDev, distributionInfo->mean, radius);
+        float pdfVal = calcPdf(stdDev, distributionInfo->mean, radius) * adjustment;
         CUDA_ASSERT_POS(pdfVal, "negative pdf value");
 
         atomicAdd(&gaussMap[array_index(blockIdx.x,col,mapInfo)], pdfVal);
 
         un.radData.radarId = threadIdx.x;
+        un.radData.garbage = 0;
         un.radData.probability = pdfVal;
+        // printf("%d\n", )
+        CUDA_ASSERT_LT_E(threadIdx.x, 32767, "Too many radar ids this cycle");
         atomicMax((unsigned long long int*)&radarIds[array_index(blockIdx.x, col, mapInfo)], un.ulong);
 
     }
