@@ -2,7 +2,6 @@ from pynuscenes.nuscenes_dataset import NuscenesDataset
 from pynuscenes.utils.nuscenes_utils import vehicle_to_global
 from nuscenes.eval.detection.data_classes import DetectionBox
 from nuscenes.eval.common.data_classes import EvalBoxes
-from nuscenes.utils.geometry_utils import view_points
 from tqdm import tqdm
 from gaussMap import GaussMap
 import numpy as np
@@ -36,6 +35,7 @@ class GaussMapWrapper:
         self.class_reverse.update({0: 'barrier'})
 
     def run(self):
+        seq = 0
         for frame in tqdm(self.nusc):
             ## get the radar data
             radarFrame = frame['radar']
@@ -51,8 +51,11 @@ class GaussMapWrapper:
                 continue
 
             ## rearange to be similar to the bosch radars
-            mask = [0,1,8,9,15,4,12,13]
+            # mask = [0,1,8,9,15,4,12,13]
+            mask = [0,1,9,8,15,4,12,13]
             radarPoints = radarPoints[:,mask]
+            # radarPoints[:,2] *=-1
+            radarPoints[:,3] *=-1
 
             ## use the pdh0 to emulate the wExist
             tmp = radarPoints[:,4]
@@ -68,7 +71,8 @@ class GaussMapWrapper:
             self.map.addCameraData(cameraPoints)
             camTime = time.time()
             maxima = self.map.associate()
-            # self.showImage()
+            # showFrame(frame, maxima, 3,seq)
+            seq += 1
             assTime = time.time()
             tqdm.write("radar: {:.5f}, camera: {:.5f}, associate: {:.5f}, total: {:.5f}".format(radar-start, camTime-radar, assTime-camTime, assTime-start))
             # if frame['sample_token'] == "0d0700a2284e477db876c3ee1d864668":

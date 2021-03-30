@@ -33,3 +33,4 @@ results/*
 *.txt
 !requirements.txt
 *.so
+figures/
