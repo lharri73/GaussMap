@@ -7,10 +7,37 @@
 - CUDA (tested on 10.2 & 11.2)
 
 ## Installation
-Installation is simplified with python. 
-Simply run `python setup.py install` and dependencies will be installed and configured. 
+There are two methods you can use: From source or from a docker container. To
+jump in and get started, the Docker container is already set up and will require
+minimal effort to get running. 
 
 ## Getting Started
+
+### Docker environment
+Using the Docker container provided allows for an easy way to access and modify
+code without worrying about system libraries. You'll just need to get the Nvidia
+container oauth token before you'll be able to pull a cuda image from Nvidia. 
+
+1. Obtain the Nvidia oauth token
+   To do this, go to [this
+   page](https://docs.nvidia.com/dgx/ngc-registry-for-dgx-user-guide) and follow
+   the steps under the *Get a New API Key for the NGC Registry* section. In step 5,
+   copy the oauth token, **Don't lose it!**
+
+1. Login to nvcr.io
+   I've added a function in the run script to do this for you, this will login
+   to nvcr.io and begin building the container. This will require ~3GB for the
+   nvidia container. In this repository, run 
+   ```bash
+   ./run.sh --build --login <your oauth token>
+   ```
+
+Normally, when you run the container, you'll just need to run it with:
+   ```bash
+   ./run.sh --dataset_dir <path to nuscenes root>
+   ```
+
+### From source
 1. This requires a newer version of cmake than is available with most Ubuntu
    versions. If on Ubuntu, a newer version can be installed with `apt`:
       1. `wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null`
