@@ -15,7 +15,7 @@ fi
 latest=`ls -t results/$4/*.json | head -1`
 curTime=`date +"results_%Y-%m-%d_%H-%M-%S"`
 
-python -m nuscenes.eval.detection.evaluate $latest --output_dir results/$4/$curTime --eval_set $2 --dataroot $3 --version $1 --render_curves 0
+python -m nuscenes.eval.detection.evaluate $latest --output_dir results/$4/$curTime --eval_set $2 --dataroot $3 --version $1 --render_curves 0 --config_path config/eval.json
 
 if [ ! -f "results/$4/map.yml" ]; then
     cp config/map.yml results/$4/map.yml

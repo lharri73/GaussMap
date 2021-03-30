@@ -2,11 +2,11 @@ from pynuscenes.nuscenes_dataset import NuscenesDataset
 from pynuscenes.utils.nuscenes_utils import vehicle_to_global
 from nuscenes.eval.detection.data_classes import DetectionBox
 from nuscenes.eval.common.data_classes import EvalBoxes
+from nuscenes.utils.geometry_utils import view_points
 from tqdm import tqdm
 from gaussMap import GaussMap
 import numpy as np
-import matplotlib.pyplot as plt
-# import open3d as o3d
+
 import time
 from consts import class_reverse
 import copy
@@ -15,6 +15,8 @@ import json
 from datetime import datetime
 import time
 import os
+
+from vis import showImage, showFrame, showFrame3d, saveFrame
 
 class GaussMapWrapper:
     def __init__(self, version, split, dataset_dir, centerTrackRes, save_dir):
@@ -62,6 +64,7 @@ class GaussMapWrapper:
             radarPoints[:,7] = 4 * radarPoints[:,7] / 30.0
             self.map.addRadarData(radarPoints)
             radar = time.time()
+            # camPoints = np.empty((1,3))
             self.map.addCameraData(cameraPoints)
             camTime = time.time()
             maxima = self.map.associate()
@@ -72,7 +75,8 @@ class GaussMapWrapper:
             #     print("results", maxima.shape)
             #     print("radarPoints", radarPoints.shape)
             #     print("camPoints", cameraPoints.shape)
-            #     self.showFrame(frame, maxima)
+            #     self.saveFrame(frame, maxima, cameraPoints)
+            #     # self.showImage()
             #     input()
 
             # ## Handle the case where there are no points found in this frame
@@ -97,7 +101,7 @@ class GaussMapWrapper:
                                    translation=[maxima[i,0], maxima[i,1], 1],
                                    size=[1,1,1], 
                                    rotation=[1,0,0,0], 
-                                   velocity=[0,0], 
+                                   velocity=[maxima[i,2],maxima[i,3]], 
                                    detection_name=self.class_reverse[int(maxima[i,4])],
                                    detection_score=1.0)
                 box = vehicle_to_global(box, pose_rec)
@@ -121,57 +125,3 @@ class GaussMapWrapper:
 
         with open("results/{}/{}.json".format(self.save_dir, self.now.strftime("%Y-%m-%d_%H-%M-%S")), "w") as f:
             json.dump(out, f, indent=4)
-
-
-    def showImage(self):
-        """
-        Creates an image of the heatmap and displays it as greyscale
-        """
-        f, axarr = plt.subplots(1,1)
-        array = self.map.asArray()
-        scaled = np.uint8(np.interp(array, (0, array.max()), (0,255)))
-        axarr.imshow(scaled, cmap="gray")
-              
-        # axarr.scatter(maxima[:,1], maxima[:,0], c=maxima[:,2], cmap='Paired', marker='o', s=(72./f.dpi)**2)
-
-        plt.show(block=False)
-        plt.waitforbuttonpress()
-
-    def showFrame(self, frame, results):
-        """
-        Draws the radar pointcloud and the lidar pointcloud in open3d
-        """
-        vis = o3d.visualization.Visualizer()
-        vis.create_window()
-
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(frame['lidar']['pointcloud'].points[:3,:].T)
-        pcd.paint_uniform_color(np.array([1,0,1])) ## blue
-        results_pcd = o3d.geometry.PointCloud()
-        # print(results.shape)
-        results_pcd.points = o3d.utility.Vector3dVector(results[:,:3])
-        results_pcd.paint_uniform_color(np.array([0,0,1]))
-
-        rpcd = o3d.geometry.PointCloud()
-        rpcd.points = o3d.utility.Vector3dVector(frame['radar']['pointcloud'].points[:3,:].T)
-        rpcd.paint_uniform_color(np.array([1,0,0])) ## Red
-
-        cpcd = o3d.geometry.PointCloud()
-        ctArray = copy.deepcopy(np.array(self.centerTrack[frame['sample_token']]))
-        ctArray[:,2] = 0.5
-        cpcd.points = o3d.utility.Vector3dVector(ctArray)
-        cpcd.paint_uniform_color(np.array([0,1,0])) ## green
-        
-        vis.add_geometry(pcd)
-        vis.add_geometry(rpcd)
-        vis.add_geometry(cpcd)
-        vis.add_geometry(results_pcd)
-        ctr = vis.get_view_control()
-
-        # ctr.set_up(np.array([1,0,0]))
-        ctr.set_zoom(.2)
-        ctr.translate(-40,10)
-        
-        vis.run()
-        vis.destroy_window()
-        

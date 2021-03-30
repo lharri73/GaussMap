@@ -18,6 +18,7 @@ GaussMapPy::GaussMapPy(const std::string params){
     mapHeight = config["MapHeight"].as<int>();
     mapWidth = config["MapWidth"].as<int>();
     mapResolution = config["MapResolution"].as<int>();
+    adjustFactor = config["adjustFactor"].as<float>();
 
     useMin = config["UseMinValue"].as<bool>();
     minCutoff = config["MinGaussValue"].as<float>();

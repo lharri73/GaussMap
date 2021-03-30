@@ -62,7 +62,7 @@ def parseVersion(version, split):
 
         for item in dic:
             item = global_to_vehicle(item, pose_rec)
-            if item.detection_score < .2: continue
+            if item.detection_score < .5: continue
             curList = [item.translation[0], item.translation[1], class_name[item.detection_name]]
             sampleList.append(curList)
         

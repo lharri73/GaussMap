@@ -95,7 +95,11 @@ void associateCameraKernel(
 
     // the association distance is decided based on the distance from the vehicle (from 0)
     // the idea is the farther from the vehicle, the less acurate the detection will be
+    #ifdef NUSCENES
+    float cutoff = hypotf(camData[array_index(threadIdx.x, 0, camInfo)], camData[array_index(threadIdx.x, 1, camInfo)]) * adjustFactor;
+    #else
     float cutoff = camData[array_index(threadIdx.x, 0, camInfo)] * adjustFactor;
+    #endif
     float curWidth = camData[array_index(threadIdx.x, 3,camInfo)];
     
     int curIndex;
