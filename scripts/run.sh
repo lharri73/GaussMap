@@ -2,7 +2,10 @@
 set -e
 
 usage(){
-    echo "Usage: $0 [version] [split] [dataset_dir] [experiment_name]" 1>&2;
+cat <<EOF
+Usage: ./run.sh [version] [split] [dataset_dir] [experiment_name]
+if using the docker environment, specify dataset_dir as `nuScenes`
+EOF
     exit 1;
 }
 

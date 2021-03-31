@@ -7,6 +7,7 @@ import platform
 import subprocess
 
 from distutils.version import LooseVersion
+import distutils.sysconfig
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 

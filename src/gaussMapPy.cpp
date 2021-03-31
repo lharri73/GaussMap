@@ -118,7 +118,7 @@ py::array_t<float> GaussMapPy::associate(){
         sizeof(float),
         py::format_descriptor<float>::format(),
         2,
-        {(int)associated.first.rows, (int)associated.first.cols},
+        {associated.first.rows, associated.first.cols},
         {sizeof(float) * associated.first.cols, sizeof(float) * 1}
     );
     return py::array_t<float>(ret);

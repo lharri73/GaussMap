@@ -56,6 +56,11 @@ if [[ "$build" -eq 1 || "$(docker images -q gaussmap:latest 2> /dev/null)" == ""
     docker build . -t gaussmap:latest
 fi
 
+if [[ "$dataset_dir" -eq 0 ]] ; then
+    echo "must specify nuscenes root directory with '-d' option"
+    exit 2
+fi
+
 docker run -it --rm \
     --mount type=bind,src="$(pwd)"/config,target=/opt/gaussMap/config \
     --mount type=bind,src="$(pwd)"/include,target=/opt/gaussMap/include \
@@ -63,4 +68,5 @@ docker run -it --rm \
     --mount type=bind,src="$(pwd)"/scripts,target=/opt/gaussMap/scripts \
     --mount type=bind,src="$(pwd)"/src,target=/opt/gaussMap/src \
     --mount type=bind,src="$(pwd)"/results,target=/opt/gaussMap/results \
+    --mount type=bind,src="$(dataset_dir)",target=/opt/gaussMap/nuScenes \
     gaussmap:latest
