@@ -5,6 +5,7 @@ set -e
 dataset_dir=0
 build=0
 TOKEN=""
+cd ..
 
 showHelp(){
 cat << EOF

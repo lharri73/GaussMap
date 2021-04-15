@@ -59,26 +59,24 @@ def showFrame3d(self, frame, results, camData):
     vis.destroy_window()
     
 def saveFrame(array, frame, results, cameraPoints):
-    raise Exception("stop. already generated figures -Landon")
     # _, ax = plt.subplots(1, 2, figsize=(9, 9))
     plt.figure(0,figsize=(4,4))
     lidar = frame['lidar']['pointcloud'].points[:3,:]
-    # radar = frame['radar']['pointcloud'].points[:3,:]
+    radar = frame['radar']['pointcloud'].points[:3,:]
     
-    # radar = view_points(radar, np.eye(4), normalize=False)
-    # scaled = np.uint8(np.interp(array, (0, array.max()), (0,255)))
-    # plt.scatter(radar[0,:], radar[1,:], c=[0,0,1], s=.5)
-    # plt.imshow(scaled, cmap='binary', origin='upper', extent=[-50,50,-50,50])
-    # plt.xlim(-50,50)
-    # plt.ylim(-50,50)
+    radar = view_points(radar, np.eye(4), normalize=False)
+    scaled = np.uint8(np.interp(array, (0, array.max()), (0,255)))
+    plt.scatter(radar[0,:], radar[1,:], c=[0,0,1], s=.5)
+    plt.imshow(scaled, cmap='binary', origin='upper', extent=[-50,50,-10,50])
+    plt.xlim(-50,50)
+    plt.ylim(-50,50)
     # plt.axis('off')
-    # plt.savefig("heatmap.png", format='png', bbox_inches='tight')
     # plt.savefig("heatmap.pdf", format='pdf', bbox_inches='tight')
 
     # plt.figure(1,figsize=(4,4))
     # lidar = view_points(lidar, np.eye(4), normalize=False)
-    # plt.scatter(lidar[0,:], lidar[1,:], c=[.75,.75,.75],s=.2)
-    # plt.scatter(results[:,0], results[:,1], c=[0,0,1], s=3)
+    plt.scatter(lidar[0,:], lidar[1,:], c=[.75,.75,.75],s=.2)
+    plt.scatter(results[:,0], results[:,1], c=[0,1,0], s=3)
     # plt.scatter(cameraPoints[:,0], cameraPoints[:,1], c=[1,0,0], s=3)
     # plt.plot(0,0,'x', color='black')
     # plt.xlim(-50,50)
@@ -88,15 +86,16 @@ def saveFrame(array, frame, results, cameraPoints):
     # plt.savefig("maxima_w_cam.pdf", format='pdf', bbox_inches='tight')
 
     lidar = view_points(lidar, np.eye(4), normalize=False)
-    plt.scatter(lidar[0,:], lidar[1,:], c=[.75,.75,.75],s=.2)
-    plt.scatter(results[:,0], results[:,1], c=[0,.75,0], s=3)
-    plt.plot(0,0,'x', color='black')
-    plt.xlim(-50,50)
-    plt.ylim(-50,50)
-    plt.axis('off')
-    plt.savefig("fusion_results.png", format='png', bbox_inches='tight')
-    plt.savefig("fusion_results.pdf", format='pdf', bbox_inches='tight')
+    # plt.scatter(lidar[0,:], lidar[1,:], c=[.75,.75,.75],s=.2)
+    # plt.scatter(results[:,0], results[:,1], c=[0,.75,0], s=3)
+    # plt.plot(0,0,'x', color='black')
+    # plt.xlim(-50,50)
+    # plt.ylim(-50,50)
+    # plt.axis('off')
+    # plt.savefig("fusion_results.png", format='png', bbox_inches='tight')
+    # plt.savefig("fusion_results.pdf", format='pdf', bbox_inches='tight')
 
+    plt.savefig("heatmap.png", format='png', bbox_inches='tight')
     # plt.show()
 
 

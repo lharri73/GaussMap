@@ -20,7 +20,8 @@ typedef struct Array_Info{
 
 typedef struct Array_Relationship{
     size_t width;           // meters
-    size_t height;          // meters
+    size_t heightTop;       // meters
+    size_t heightBot;       // meters
     size_t res;             // resolution (cells per linear meter)
 } array_rel;
 

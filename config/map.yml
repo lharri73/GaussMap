@@ -1,12 +1,14 @@
 MapWidth: 100         ## (int) Width of the heat map in meters
-MapHeight: 100        ## (int) Height of the heat map in meters
+# MapHeight: 100        ## (int) Height of the heat map in meters
+MapHeightTop: 50      ## (int) Height of the heat map in front of the vehicle
+MapHeightBot: 10      ## (int) Height of the heat map behind the vehicle
 MapResolution: 5      ## (int) Number of cells per meter along each linear axis.
                       ## - Number of cells per square meter = MapResolution^2
 UseMinValue: False
 MinGaussValue: .25
-adjustFactor: .2
+adjustFactor: .75502
 
 Radar:
-  StdDev: 2         ## (float) Standard deviation of each radar point's normal distribution
+  StdDev: 4.5925         ## (float) Standard deviation of each radar point's normal distribution
   Mean: 0.0           ## (float) mean of each radar points normal distribution
-  RadCutoff: 3      ## (float) distance to cutoff distribution for each radar point (meters)
+  RadCutoff: 3.9513      ## (float) distance to cutoff distribution for each radar point (meters)

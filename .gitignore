@@ -34,3 +34,4 @@ results/*
 !requirements.txt
 *.so
 figures/
+runs

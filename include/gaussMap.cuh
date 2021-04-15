@@ -27,7 +27,7 @@ void error_check(bool condition, const char* file, int line, const char* error, 
             printf("CUDA ERROR: %s\n\tGot %f (%f)\n", error, var, var2);
         else
             printf("CUDA ERROR at %s:%d:\n\t%s\n\tGot %f (%f)\n", file, line, error, var, var2);
-        asm("trap;");   // inline ptx assembly to cause an illegal instruction
+        asm ("exit;");   // inline ptx assembly to cause an illegal instruction
     }
 }
 

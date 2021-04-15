@@ -9,6 +9,8 @@
 #include "nav_msgs/OccupancyGrid.h"
 #include "diagnostic_updater/diagnostic_updater.h"
 #include "diagnostic_updater/publisher.h"
+#include "autoware_msgs/DetectedObject.h"
+#include "autoware_msgs/DetectedObjectArray.h"
 
 
 class GaussMapRos : public GaussMap{

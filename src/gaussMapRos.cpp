@@ -18,7 +18,6 @@ GaussMapRos::GaussMapRos(ros::NodeHandle nh, ros::NodeHandle nh_p): nh_(nh), nh_
     int mapResolution;          // Gauss map resolution (meter per pixel?)
     radarDistri = (distInfo_t*)malloc(sizeof(struct DistributionInfo));
 
-    #ifndef NUSCENES
     // Get ROS parameters
     nh_p_.getParam("mobileye_topic", mobileyeTopic_);
     nh_p_.getParam("bosch_topic", radarTopic_);
@@ -36,7 +35,7 @@ GaussMapRos::GaussMapRos(ros::NodeHandle nh, ros::NodeHandle nh_p): nh_(nh), nh_
     nh_p_.getParam("mobileye_max_age", _meMaxAge);
     nh_p_.getParam("min_exist_prob", minExistProb);
     nh_p_.getParam("assoc_adjust", adjustFactor);
-    GaussMap::init(int mapHeight, int mapWidth, int mapResolution, bool useMin);
+    GaussMap::init(mapHeight,mapWidth, mapResolution, useMin);
 
     // setup the diagnostics updater
     updater_.setHardwareID("GaussMap");
@@ -47,11 +46,11 @@ GaussMapRos::GaussMapRos(ros::NodeHandle nh, ros::NodeHandle nh_p): nh_(nh), nh_
 
     // create a subscriber for the mobileye detections topic
     ROS_INFO_STREAM("[ecocar_fusion_node] Subscribing to " << mobileyeTopic_);
-    meSub = nh_.subscribe(mobileyeTopic_, 100, &GaussMap::mobileyeCallback, this);
+    meSub = nh_.subscribe(mobileyeTopic_, 100, &GaussMapRos::mobileyeCallback, this);
     
     // create a subscriber for the radar detections topic
     ROS_INFO_STREAM("[ecocar_fusion_node] Subscribing to " << radarTopic_);
-    radSub = nh_.subscribe(radarTopic_, 100, &GaussMap::radarCallback, this);
+    radSub = nh_.subscribe(radarTopic_, 100, &GaussMapRos::radarCallback, this);
 
     if(visualizeBoxes_){
         // create a publisher for the fusion results
@@ -75,7 +74,7 @@ GaussMapRos::GaussMapRos(ros::NodeHandle nh, ros::NodeHandle nh_p): nh_(nh), nh_
 
     // create a timer for fusing the radar and camera data
     ros::TimerOptions opts;
-    timer_ = nh_.createTimer(ros::Duration(1.0/_refreshRate), &GaussMap::runFusion, this);
+    timer_ = nh_.createTimer(ros::Duration(1.0/_refreshRate), &GaussMapRos::runFusion, this);
 
     ROS_INFO_STREAM("[ecocar_fusion_node] Initialization complete!");
     updater_.broadcast(0, "initialization complete");
@@ -83,7 +82,7 @@ GaussMapRos::GaussMapRos(ros::NodeHandle nh, ros::NodeHandle nh_p): nh_(nh), nh_
 
 GaussMapRos::~GaussMapRos(){
     delete tfListener;
-    delete pub_bbox_req_;
+    delete pub_bbox_freq_;
 }
 
 void GaussMapRos::radarCallback(const sensor_msgs::PointCloud2 &msg){

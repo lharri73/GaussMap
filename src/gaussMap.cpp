@@ -4,13 +4,14 @@
 #include "gaussMap.hpp"
 #endif
 
-void GaussMap::init(int mapHeight, int mapWidth, int mapResolution, bool useMin){
+void GaussMap::init(int mapHeightTop, int mapHeightBot, int mapWidth, int mapResolution, bool useMin){
     // Set parameters
-    mapRel.height = mapHeight;
+    mapRel.heightTop = mapHeightTop;
+    mapRel.heightBot = mapHeightBot;
     mapRel.width = mapWidth;
     mapRel.res = mapResolution;
     mapInfo.cols = mapRel.width * mapRel.res;
-    mapInfo.rows = mapRel.height * mapRel.res;
+    mapInfo.rows = (mapRel.heightTop+mapRel.heightBot) * mapRel.res;
     mapInfo.elementSize = sizeof(mapType_t);
     windowIdInfo.rows = mapInfo.rows * mapInfo.cols;
     windowIdInfo.cols = searchSize;

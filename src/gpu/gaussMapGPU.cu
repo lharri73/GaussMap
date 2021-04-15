@@ -202,6 +202,7 @@ void GaussMap::setRadarIds(){
 }
 
 // performs the association between radar and camera detections
+// returns a pair (array_info, theArray)
 // ret: [x,y,vx,vy,class]
 std::pair<array_info,float*> GaussMap::associatePair(){
 

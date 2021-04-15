@@ -8,14 +8,16 @@ Every function not in this file should not require python
 GaussMapPy::GaussMapPy(const std::string params){
     ROS_INFO_STREAM("[ecocar_fusion_node] Initializing GaussMap...");
 
-    int mapWidth;               // Gauss map width
-    int mapHeight;              // Gauss map height
+    int mapHeightTop;            // Gauss map width
+    int mapHeightBot;            // Gauss map width
+    int mapWidth;              // Gauss map height
     int mapResolution;          // Gauss map resolution (meter per pixel?)
     radarDistri = (distInfo_t*)malloc(sizeof(struct DistributionInfo));
 
     YAML::Node config = YAML::LoadFile(params);
 
-    mapHeight = config["MapHeight"].as<int>();
+    mapHeightTop = config["MapHeightTop"].as<int>();
+    mapHeightBot = config["MapHeightBot"].as<int>();
     mapWidth = config["MapWidth"].as<int>();
     mapResolution = config["MapResolution"].as<int>();
     adjustFactor = config["adjustFactor"].as<float>();
@@ -27,7 +29,7 @@ GaussMapPy::GaussMapPy(const std::string params){
     radarDistri->stdDev = config["Radar"]["StdDev"].as<float>();
     radarDistri->mean = config["Radar"]["Mean"].as<float>();
     radarDistri->distCutoff = config["Radar"]["RadCutoff"].as<float>();
-    GaussMap::init(mapHeight, mapWidth, mapResolution,useMin);
+    GaussMap::init(mapHeightTop, mapHeightBot, mapWidth, mapResolution,useMin);
 }
 
 // this template py:array_t forces the numpy array to be passed without any strides

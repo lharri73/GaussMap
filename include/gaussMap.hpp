@@ -25,7 +25,7 @@ class GaussMap{
         std::pair<array_info,float*> associatePair(); // function fusing the radar and vision detections
         void reset();                       // clears the array, radar, and camera data for the next fusion cycle
         ~GaussMap();
-        void init(int mapHeight, int mapWidth, int mapResolution, bool useMin);
+        void init(int mapHeightTop, int mapHeightBot, int mapWidth, int mapResolution, bool useMin);
         
     protected:
         mapType_t* array;                   // cuda array for heatmap of gauss distributions

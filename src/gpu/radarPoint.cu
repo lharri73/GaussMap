@@ -42,7 +42,8 @@ __device__
 Position_t index_to_position(size_t row, size_t col, const array_info *info, const array_rel *relation){
     // find the position from center of map given cell index
     float center_x = (float)(info->cols/2.0);
-    float center_y = (float)(info->rows/2.0);
+    float center_y = relation->heightTop * relation->res;
+    // float center_y = (float)(info->rows/2.0);
     float x_offset = (col - center_x);
     float y_offset = (row - center_y) * -1;     // flip the y axis so + is in the direction of travel
 

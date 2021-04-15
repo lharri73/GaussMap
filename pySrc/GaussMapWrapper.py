@@ -18,7 +18,7 @@ import os
 from vis import showImage, showFrame, showFrame3d, saveFrame
 
 class GaussMapWrapper:
-    def __init__(self, version, split, dataset_dir, centerTrackRes, save_dir):
+    def __init__(self, version, split, dataset_dir, centerTrackRes, save_dir, configLocation='config/map.yml'):
         self.nusc = NuscenesDataset(dataset_dir, version, split, 'config/nuscenes.yml')
         self.save_dir = save_dir
         self.now = datetime.now()
@@ -29,7 +29,7 @@ class GaussMapWrapper:
             'date': self.now.strftime("%m/%d/%Y %H:%M:%S")
         }
         self.centerTrack = centerTrackRes
-        self.map = GaussMap('config/map.yml')
+        self.map = GaussMap(configLocation)
         self.results = EvalBoxes()
         self.class_reverse = class_reverse
         self.class_reverse.update({0: 'barrier'})
@@ -52,10 +52,8 @@ class GaussMapWrapper:
 
             ## rearange to be similar to the bosch radars
             # mask = [0,1,8,9,15,4,12,13]
-            mask = [0,1,9,8,15,4,12,13]
+            mask = [0,1,8,9,15,4,12,13]
             radarPoints = radarPoints[:,mask]
-            # radarPoints[:,2] *=-1
-            radarPoints[:,3] *=-1
 
             ## use the pdh0 to emulate the wExist
             tmp = radarPoints[:,4]
@@ -68,13 +66,19 @@ class GaussMapWrapper:
             self.map.addRadarData(radarPoints)
             radar = time.time()
             # camPoints = np.empty((1,3))
-            self.map.addCameraData(cameraPoints)
+            cameraPtsTmp = np.empty((1,4))
+            # self.map.addCameraData(cameraPoints)
+            self.map.addCameraData(cameraPtsTmp)
             camTime = time.time()
             maxima = self.map.associate()
-            # showFrame(frame, maxima, 3,seq)
+            arr = self.map.asArray()
+
+            saveFrame(arr, frame, maxima, cameraPoints)
+            exit()
+            
             seq += 1
             assTime = time.time()
-            tqdm.write("radar: {:.5f}, camera: {:.5f}, associate: {:.5f}, total: {:.5f}".format(radar-start, camTime-radar, assTime-camTime, assTime-start))
+#            tqdm.write("radar: {:.5f}, camera: {:.5f}, associate: {:.5f}, total: {:.5f}".format(radar-start, camTime-radar, assTime-camTime, assTime-start))
             # if frame['sample_token'] == "0d0700a2284e477db876c3ee1d864668":
             #     print("results", maxima.shape)
             #     print("radarPoints", radarPoints.shape)
