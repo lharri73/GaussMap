@@ -1,4 +1,5 @@
 # Gauss Map
+A 3D object detector for the NuScenes dataset. Designed to work with a hardware monocular object detector and radar detections. In this work, camera detection points are generated with the CenterTrack algorithm, but this could be done using any 3D object detector. 
 
 ## Requirements
 - cmake >=3.17
