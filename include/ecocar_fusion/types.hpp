@@ -1,6 +1,12 @@
 #pragma once
 #include <cstdint>
 #include <cstdlib>
+#include <memory>
+#ifndef NUSCENES
+#include <ros/ros.h>
+#include "ecocar_fusion/objData.hpp"
+#include "ecocar_fusion/params.hpp"
+#endif
 
 typedef float RadarData_t;
 typedef float mapType_t;
@@ -9,6 +15,7 @@ typedef struct Array_Info{
     size_t rows;            // total number of rows
     size_t cols;            // total number of columns
     size_t elementSize;     // size of a single element in bytes
+    size_t size();          // utils.cpp
 } array_info;
 
 typedef struct Array_Relationship{
@@ -17,15 +24,10 @@ typedef struct Array_Relationship{
     size_t res;             // resolution (cells per linear meter)
 } array_rel;
 
-typedef struct CamVal{
-    uint32_t classVal;      // uint32 so it's aligned to double word (32 bits)
-    float probability;      // value of pdf
-} camVal_t;
 
 typedef struct MaxVal{
     uint8_t isMax;
     uint8_t classVal;
-    uint16_t radars[49];
 } maxVal_t;
 
 typedef struct DistributionInfo{
@@ -35,6 +37,31 @@ typedef struct DistributionInfo{
 } distInfo_t;
 
 typedef struct RadarIds{
-    uint32_t radarId;      // uint32 so it's aligned to double word
+    int16_t radarId;       // uint32 so it's aligned to double word
+    uint16_t garbage;
     float probability;     // value of pdf
-} radarId_t;
+} radarId_t; 
+
+// typedef struct objStruct {
+//     ros::Time time;
+//     float object[3]; // [x,y,class]
+// }* obstacle_t;
+
+#ifndef NUSCENES
+typedef objStruct *obstacle_t;
+#endif
+
+typedef struct {
+    float* data;
+    array_info info;
+} array_t;
+
+typedef struct position{
+    float x;
+    float y;
+} Position_t;
+
+typedef union _radarId_u {
+    radarId_t radData;
+    unsigned long long int ulong;
+} radarId_u;

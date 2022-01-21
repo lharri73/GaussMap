@@ -58,7 +58,7 @@ class CMakeBuild(build_ext):
 
 setup(
     name='gaussMap',
-    version='0.1',
+    version='0.2',
     author='Landon Harris',
     author_email='lharri73@vols.utk.edu',
     description='A Cuda implementation of gaussian heat maps',
