@@ -27,18 +27,19 @@ GaussMapPy::GaussMapPy(const std::string params){
     radarDistri->stdDev = config["Radar"]["StdDev"].as<float>();
     radarDistri->mean = config["Radar"]["Mean"].as<float>();
     radarDistri->distCutoff = config["Radar"]["RadCutoff"].as<float>();
+    fprintf(stderr, "initializing gaussmap\n");
     GaussMap::init(mapHeight, mapWidth, mapResolution,useMin);
 }
 
 // this template py:array_t forces the numpy array to be passed without any strides
 // and favors a c-style array
-void GaussMapPy::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::array::forcecast> array){
+void GaussMapPy::addRadarData(py::array_t<RadarData_t, py::array::c_style | py::array::forcecast> array_p){
     if(radarData != nullptr)
         throw std::runtime_error("addRadarData can only be called once after calling reset()");
     size_t radarPoints, radarFeatures;
     
     // get information about the numpy array from python
-    py::buffer_info buf1 = array.request();
+    py::buffer_info buf1 = array_p.request();
     RadarData_t *data;
     data = static_cast<RadarData_t*>(buf1.ptr);
     if(buf1.itemsize != sizeof(RadarData_t)){
@@ -85,8 +86,8 @@ py::array_t<mapType_t> GaussMapPy::asArray(){
     return py::array_t<mapType_t>(a);
 }
 
-void GaussMapPy::addCameraData(py::array_t<float, py::array::c_style | py::array::forcecast> array){
-    py::buffer_info buf1 = array.request();
+void GaussMapPy::addCameraData(py::array_t<float, py::array::c_style | py::array::forcecast> array_p){
+    py::buffer_info buf1 = array_p.request();
     float* data;
     data = static_cast<float*>(buf1.ptr);
     if(buf1.itemsize != sizeof(float)){

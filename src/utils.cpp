@@ -21,7 +21,7 @@ void safeCudaFree_macro(void *ptr, int line, const char* file){
         if(error != cudaSuccess){
             std::stringstream ss;
             ss << "gaussMap:: Internal error during cudaFree at " << file << ":" << line << '\n';
-            ss << "\tCUDA: " << error << '\n';
+            ss << "\tCUDA: " << cudaGetErrorString(error) << '\n';
             throw std::runtime_error(ss.str());
         }
     }

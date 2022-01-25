@@ -18,26 +18,26 @@ include_directories(
     ${YAML_CPP_INCLUDE_DIR}
 )
 
-pybind11_add_module(gaussMap
+pybind11_add_module(gaussMap THIN_LTO NO_EXTRAS
     src/gaussMap.cpp
     src/gaussMapPy.cpp
     src/utils.cpp
-    src/gpu/ALL.cu
-    #    src/gpu/associate.cu
-    #    src/gpu/calcMax.cu
-    #    src/gpu/gaussMapGPU.cu
-    #    src/gpu/radarPoint.cu
-    #    src/gpu/reset.cu
+    src/gpu/associate.cu
+    src/gpu/calcMax.cu
+    src/gpu/gaussMapGPU.cu
+    src/gpu/radarPoint.cu
+    src/gpu/reset.cu
 )
 
 ## Link to cuda
-target_link_libraries(gaussMap PRIVATE
-    CUDA::cudart
+target_link_libraries(gaussMap
+    #CUDA::cudart
     ${YAML_CPP_LIBRARIES}
 )
-set_property(TARGET gaussMap PROPERTY INTERPROCEDURAL_OPTIMIZATION False)
+set_property(TARGET gaussMap PROPERTY CUDA_SEPARABLE_COMPILATION ON)
 
-#set_property(TARGET gaussMap PROPERTY CUDA_ARCHITECTURES 60 61 62 70 72)
-set_property(TARGET gaussMap PROPERTY CXX_STANDARD 11)
+set_property(TARGET gaussMap PROPERTY CUDA_ARCHITECTURES 60 61 62 70 72)
+set_property(TARGET gaussMap PROPERTY CXX_STANDARD 14)
 
-set(PYBIND11_CPP_STANDARD -std=c++11)
+set(PYBIND11_CPP_STANDARD -std=c++14)
+
