@@ -18,6 +18,11 @@ Simply run `python setup.py install` and dependencies will be installed and conf
    These will be pickled together to allow for faster loading later. If you don't need all of them 
    (for example, only the test for evaluation, then you can only run the test set)
 
+   [Here's](https://drive.google.com/file/d/1xBgdcnCkWxrPk3XgVugwTcqkSNMz93QK/view?usp=sharing)
+   the CenterTrack data I prepared before!
+   *note:* It does not include the full dataset. Only the mini and test sets. Extract this 
+   to the `results/CenterTrack` directory.
+
 1. From the root of this repository, run `./pySrc/main.py [nuscenes_version] [nuscenes_split] [nuscenes_root]`
 
 
